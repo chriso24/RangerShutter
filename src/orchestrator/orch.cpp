@@ -87,19 +87,23 @@ void Orch::PerformCalibration()
 void Orch::ActionMovement()
 {
     int speed = fastSpeed;
+    int timeForCycle = recordedTimeForCycle;
     bool isRecoveryRun = !finishedSuccessfully;
     if (!finishedSuccessfully)
+    {
         speed = recoverySpeed;
+        timeForCycle = timeForCycle*1.5;
+    }
     
     finishedSuccessfully = false;
     Serial.println("\nOrch start");
 
-    int timeForCycle = recordedTimeForCycle;
+    
 
     if (!directionClose)
     {
         Serial.println("Close");
-        timeForCycle = recordedTimeForCycle * 1.05;
+        timeForCycle = timeForCycle * 1.05;
     }
 
     Serial.print("Cycle time = ");
@@ -128,6 +132,7 @@ void Orch::ActionMovement()
 
     Serial.println("Slowing things down for end of cycle");
 
+    if (!isRecoveryRun)
     if (motorController->IsRunning())
     {
         Serial.println("Success run");

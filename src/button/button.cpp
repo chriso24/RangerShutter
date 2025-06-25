@@ -1,91 +1,127 @@
 #include "button.h"
-#include "Arduino.h" 
+#include "Arduino.h"
 
-
-	
-    void Button::Loop()
+void Button::Init()
+{
+    for (size_t i = 0; i < 3; i++)
     {
-        touch_value_t touch = touchRead(T0);
-        bool isPressed = touch < 11;
-        bool isChange = buttonDown != isPressed;
+        previousTouchValues[i] = 100;
+    }
+}
 
-        
+void Button::Loop()
+{
+    touch_value_t touch = touchRead(T0);
+    touch_value_t averageTouch = previousTouchValues[0];
 
-        // debounce
-        if((isChange && (timeOfLastStateChange + eventDebounceTime) < xTaskGetTickCount()))
-        {
-            Serial.println("isChange");
-            timeOfLastStateChange = xTaskGetTickCount();
+    for (int i = 0; i < WINDOW_SIZE-1; i++)
+    {
+        previousTouchValues[i] = previousTouchValues[i + 1];
+        averageTouch = averageTouch + previousTouchValues[i];
+    }
+    previousTouchValues[WINDOW_SIZE-1] = touch;
+    //Serial.print("Count = ") ; Serial.println(averageTouch );
+    averageTouch = (averageTouch + touch) / 4.0;
 
-            if (isPressed)
+    //Serial.print("Touch = ") ; Serial.println(touch );
+    //Serial.print("Avera = ") ; Serial.println(averageTouch );
+
+   
+    //averageTouch = touch;
+    Serial.print("Avera = ") ; Serial.println(averageTouch );
+
+      bool isPressed = averageTouch < longRunningAvg;
+     bool isChange = buttonDown != isPressed;
+
+     if(!isPressed)
+     {
+         if ((xTaskGetTickCount() % 10000) == 0)
+         {
+            longRunningAvg = ((longRunningAvg + averageTouch)/2)* 0.7;
+
+            if (longRunningAvg < 15)
             {
-                timeAtButtonDown = xTaskGetTickCount();
+                longRunningAvg = 15;
             }
-            else 
+         }
+     }
+
+    // debounce
+    if ((isChange && (timeOfLastStateChange + eventDebounceTime) < xTaskGetTickCount()))
+    {
+        Serial.println("isChange");
+        timeOfLastStateChange = xTaskGetTickCount();
+
+        if (isPressed)
+        {
+            timeAtButtonDown = xTaskGetTickCount();
+        }
+        else
+        {
+            int holdTime = (xTaskGetTickCount() - timeAtButtonDown);
+            if (holdTime < releaseWithin && holdTime > holdForAtleast)
             {
-                int holdTime = (xTaskGetTickCount() - timeAtButtonDown);
-                if(holdTime < releaseWithin && holdTime > holdForAtleast)
+                if ((xTaskGetTickCount() - timeOfLastButtonPress) > buttonDebounceAmount)
                 {
-                    if ((xTaskGetTickCount() - timeOfLastButtonPress) > buttonDebounceAmount)
-                    {
-                        timeOfLastButtonPress = xTaskGetTickCount();
-                        notificationRequired = true;
-                    }
-                }
-                else if (holdTime > longPressTime)
-                {
-                    notificationLongRequired = true;
-                    Serial.print("Long Press");
-                }
-                else
-                {
-                    Serial.print("Button press rejected (");Serial.print(holdTime);Serial.println(")");
+                    timeOfLastButtonPress = xTaskGetTickCount();
+                    notificationRequired = true;
                 }
             }
-            buttonDown = isPressed;
+            else if (holdTime > longPressTime)
+            {
+                notificationLongRequired = true;
+                Serial.print("Long Press");
+            }
+            else
+            {
+                Serial.print("Button press rejected (");
+                Serial.print(holdTime);
+                Serial.println(")");
+            }
         }
-        else if (isChange)
-        {
-Serial.print("Button press rejected debounce (");Serial.print((timeOfLastStateChange + eventDebounceTime) - xTaskGetTickCount());Serial.println(")");
-        }
-        else if (isPressed)
-        {
-Serial.print(touch);Serial.print("|");
-        }
-
-        // if (isChange && (timeSinceLastButtonPress + debounceAmount) < xTaskGetTickCount())
-        // {
-        //     buttonDown = isPressed;
-            
-        //     if (!isPressed)
-        //     {
-        //         notificationRequired = true;
-        //         buttonUp = true;
-        //     }
-            
-        // }
+        buttonDown = isPressed;
     }
-
-    byte Button::ButtonPressed()
+    else if (isChange)
     {
-        if (notificationRequired)
-        {
-            notificationRequired = 0;
-            return true;
-        }
-        return false;
+        Serial.print("Button press rejected debounce (");
+        Serial.print((timeOfLastStateChange + eventDebounceTime) - xTaskGetTickCount());
+        Serial.println(")");
     }
-
-     byte Button::ButtonLongPressed()
+    else if (isPressed)
     {
-        if (notificationLongRequired)
-        {
-            notificationLongRequired = 0;
-            return true;
-        }
-        return false;
+        Serial.print(averageTouch);
+        Serial.print("|");
     }
 
+    // if (isChange && (timeSinceLastButtonPress + debounceAmount) < xTaskGetTickCount())
+    // {
+    //     buttonDown = isPressed;
 
+    //     if (!isPressed)
+    //     {
+    //         notificationRequired = true;
+    //         buttonUp = true;
+    //     }
 
+    // }
+}
 
+byte Button::ButtonPressed()
+{
+    if (notificationRequired)
+    {
+        notificationRequired = 0;
+        return true;
+    }
+    return false;
+}
+
+byte Button::ButtonLongPressed()
+{
+    if (notificationLongRequired)
+    {
+        notificationLongRequired = 0;
+        return true;
+    }
+    return false;
+}

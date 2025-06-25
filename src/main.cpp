@@ -60,6 +60,7 @@ void setup()
 
     //current.Init();
 
+    button.Init();
     currentMonitor.Init();
     motorController.Init(&currentMonitor);
     orchestrator.Init(&motorController, &currentMonitor);

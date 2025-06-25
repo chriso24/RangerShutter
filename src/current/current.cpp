@@ -16,7 +16,10 @@ void Current::Init()
         Serial.println("Current Init");
         Wire.begin(I2C_SDA, I2C_SCL);
         ina226->init();
-        //ina226->setAverage(AVERAGE_1);
+
+        // 25/06/2025 uncommenting to see if this helps. Have been running mostly well without
+        ina226->setAverage(AVERAGE_4);
+
         ina226->setResistorRange(1, 10.0);
         ina226->setMeasureMode(CONTINUOUS);
         ina226->setAlertType(POWER_OVER,maxCurrentLow);
