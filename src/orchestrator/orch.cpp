@@ -122,7 +122,7 @@ void Orch::ActionMovement()
 
     Serial.println("\nCurrent limit normal");
 
-    currentMonitor->SetCurrentLimit(isRecoveryRun ? Current::CurrentLevel::C_LOW : Current::CurrentLevel::C_MEDIUM, !directionClose);
+    currentMonitor->SetCurrentLimit(isRecoveryRun ? Current::CurrentLevel::C_LOW : Current::CurrentLevel::C_HIGH, !directionClose);
 
     while ((xTaskGetTickCount() - startTick) < timeForCycle)
     {
@@ -138,7 +138,7 @@ void Orch::ActionMovement()
         Serial.println("Success run");
         finishedSuccessfully = true;
         motorController->SetSpeedAndDirection(directionClose, slowSpeed, 5, true);
-        vTaskDelay(500);
+        vTaskDelay(1500);
         currentMonitor->SetCurrentLimit(Current::CurrentLevel::C_VLOW,!directionClose);
     }
     else

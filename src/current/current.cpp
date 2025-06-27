@@ -18,7 +18,7 @@ void Current::Init()
         ina226->init();
 
         // 25/06/2025 uncommenting to see if this helps. Have been running mostly well without
-        ina226->setAverage(AVERAGE_4);
+        //ina226->setAverage(AVERAGE_4);
 
         ina226->setResistorRange(1, 10.0);
         ina226->setMeasureMode(CONTINUOUS);
@@ -64,12 +64,12 @@ if (((interuptCount > 0) || startInteruptCount == interuptCount) && callBackOnOv
     {
         //Serial.print("Set current perdcentage: "); 
         Serial.println(percentage); 
-        float current = ((float)(maxCurrentLow - maxCurrentUltraLow)*percentage) + maxCurrentUltraLow;
+        float current = ((float)(maxCurrentHigh - maxCurrentUltraLow)*percentage) + maxCurrentUltraLow;
 
         //Serial.print("Set current: "); 
         Serial.println(current); 
 
-        ina226->setAlertType(POWER_OVER,current*1.05);
+        ina226->setAlertType(POWER_OVER,current*1.00);
 
         //ina226->readAndClearFlags();
     }
@@ -155,7 +155,7 @@ case CurrentLevel::C_MEDIUM:
     Serial.println(closing ? "Medium*1.5": "Medium"); 
     break;
     case CurrentLevel::C_LOW:
-    ina226->setAlertType(POWER_OVER,closing ? maxCurrentUltraLow * 1.5 : maxCurrentUltraLow);
+    ina226->setAlertType(POWER_OVER,closing ? maxCurrentUltraLow * 1.1 : maxCurrentUltraLow);
     if (currentLevel != level)
     Serial.println(closing ? "Low*1.5": "Low"); 
     break;

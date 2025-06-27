@@ -43,13 +43,14 @@ private:
     // int currentDirection;
     void SetCurrentForSpeed(int speed);
     
-    TickType_t timeSinceLastSpeedChange;
+    TickType_t timeAtLastSpeedChange;
     static Current* currentMonitor;
     
     int timeForFullCycle = 0;
     int recordedTimeForFullCycle = 0;
     int cycleStartTick = 0;
     int SetMaxSpeed = 255; //255
+    
 
     const int smoothMotorValue = 0; // Increasing makes speed chnages slower
     const int rampingOnRun = 700; // ticks

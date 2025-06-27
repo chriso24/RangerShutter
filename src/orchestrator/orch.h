@@ -31,7 +31,7 @@ bool finishedSuccessfully;
 
 
 
-const int rampingOnRun = 1100; // ticks
+const int rampingOnRun = 2000; // ticks
     const int slowSpeed = 80;
     const int recoverySpeed = 120;
     const int fastSpeed = 255; // Max 255

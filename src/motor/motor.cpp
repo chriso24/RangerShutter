@@ -20,7 +20,7 @@ Motor::Motor()
     CurrentDirection = 0;
     inMotion = 0;
     currentPositionEstimate = 0;
-    timeSinceLastSpeedChange = 0;
+    timeAtLastSpeedChange = 0;
     // Singleton = this;
 }
 
@@ -30,6 +30,17 @@ void Motor::Init(Current *current)
     currentMonitor->AttachInteruptForOverCurrent(Motor::CurrentInterupt);
     //pinMode(2, INPUT_PULLUP);
     //attachInterrupt(digitalPinToInterrupt(2), Motor::CurrentInterupt, FALLING);
+}
+
+void Motor::Loop()
+{
+    if(CurrentSpeed > 0)
+    {
+        if ((xTaskGetTickCount() - timeAtLastSpeedChange) > 60000)
+        {
+            Stop(true);
+        }
+    }
 }
 
 void Motor::CurrentInterupt()
@@ -135,6 +146,8 @@ void Motor::SetSpeedAndDirection(bool closing, int targetSpeed, int transitionTi
     Serial.println("Set speed and direction");
     alert = false;
     alertCount = 0;
+
+    timeAtLastSpeedChange = xTaskGetTickCount() ;
 
     if (CurrentSpeed < targetSpeed)
     {

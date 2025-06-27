@@ -28,21 +28,26 @@ void Button::Loop()
 
    
     //averageTouch = touch;
-    Serial.print("Avera = ") ; Serial.println(averageTouch );
+    //Serial.print("Avera = ") ; Serial.println(averageTouch );
 
       bool isPressed = averageTouch < longRunningAvg;
      bool isChange = buttonDown != isPressed;
+     cyclesSinceAverageTake++;
 
      if(!isPressed)
      {
-         if ((xTaskGetTickCount() % 10000) == 0)
+         if (cyclesSinceAverageTake > 100)
          {
-            longRunningAvg = ((longRunningAvg + averageTouch)/2)* 0.7;
+            cyclesSinceAverageTake = 0;
+            longRunningAvg = ((longRunningAvg + averageTouch)/2)* 0.8;
 
-            if (longRunningAvg < 15)
+
+            Serial.print("Updating avergae. New average = ") ; Serial.println(longRunningAvg );
+            if (longRunningAvg > 15)
             {
                 longRunningAvg = 15;
             }
+            Serial.print("final longRunningAvg = ") ; Serial.println(longRunningAvg );
          }
      }
 

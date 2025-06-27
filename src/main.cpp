@@ -105,6 +105,7 @@ void loop()
 {
     //motorController.Loop();
     button.Loop();
+    motorController.Loop();
 
     if (button.ButtonPressed())
     {

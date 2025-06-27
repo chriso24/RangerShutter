@@ -24,6 +24,7 @@ private:
     TickType_t timeOfLastStateChange;
     TickType_t timeOfLastButtonPress;
     TickType_t timeAtButtonDown;
+    int cyclesSinceAverageTake = 0; 
     byte buttonDown = 0;
     byte buttonUp = 1;
     byte notificationRequired = 0;

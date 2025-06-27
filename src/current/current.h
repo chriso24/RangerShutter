@@ -52,10 +52,10 @@ static const int movingAverageSizeSmall = 3;
 static const int movingAverageSizeLarge = 10;
 static constexpr float overCurrentPercentage = 0.35;
 
-static constexpr float maxCurrentHigh = 750.0;
+static constexpr float maxCurrentHigh = 780.0;
 // 560 is the max value the motor will draw at the low speed when stalled.
-static constexpr float maxCurrentLow = 550.0;
-static constexpr float maxCurrentUltraLow = 340.0;
+static constexpr float maxCurrentLow = 500.0;
+static constexpr float maxCurrentUltraLow = 440.0;
 static constexpr float maxCurrentUltraUltraLow = 340.0;
 
     static INA226_WE* ina226;
