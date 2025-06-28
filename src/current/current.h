@@ -43,6 +43,7 @@ static void Loop(void* p_pParam);
 
 void EndThread();
 
+void RunMonitor();
     // const float MaxCurrentDuringRamp = 2000;
     // const float MaxCurrent = 500;
     // const float MinCurrentForStop = 50;
@@ -51,7 +52,7 @@ private:
 
 static const int SHORT_WINDOW_SIZE = 3;
 static const int LONG_WINDOW_COUNT = 10;
-static constexpr float ALERT_PERCENTAGE = 0.10;
+static constexpr float ALERT_PERCENTAGE = 0.35;
 
 const int I2C_SDA = 21;
 const int I2C_SCL = 22;
@@ -65,7 +66,7 @@ static volatile int interuptCount;
 
 static const int movingAverageSizeSmall = 3;
 static const int movingAverageSizeLarge = 10;
-static constexpr float overCurrentPercentage = 0.35;
+//static constexpr float overCurrentPercentage = 0.45;
 
 // static constexpr float maxCurrentHigh = 780.0;
 // // 560 is the max value the motor will draw at the low speed when stalled.
@@ -78,7 +79,9 @@ static constexpr float maxCurrentHigh = 780.0;
 // 560 is the max value the motor will draw at the low speed when stalled.
 static constexpr float maxCurrentLow = 780.0;
 static constexpr float maxCurrentUltraLow = 780.0;
-static constexpr float maxCurrentUltraUltraLow = 780.0;
+static constexpr float maxCurrentUltraUltraLow = 340.0;
+
+static constexpr float minCurrentRead = 290.0;
 
     static INA226_WE* ina226;
     
@@ -91,6 +94,8 @@ static constexpr float maxCurrentUltraUltraLow = 780.0;
     float longAverageCurrent;
 
     long currentMEasurementCounter = 0;
+
+    TickType_t shutdownTime;
 
 
 TaskHandle_t Task1;    

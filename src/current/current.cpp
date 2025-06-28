@@ -35,6 +35,17 @@ void Current::Init()
 
 void Current::StartMonitor(ShutdownInterup callBack)
 {
+    if (Task1 != NULL)
+    {
+        eTaskState taskState = eTaskGetState(Task1);
+        if (taskState != eDeleted)
+        {
+            shutdownTime += 60000;
+            return;
+        }
+    }
+
+    Serial.println("---------Start current monitor");
     AttachInteruptForOverCurrent(callBack);
     // bool wasRunning = AbortMovement();
     for(int i = 0; i < SHORT_WINDOW_SIZE; i++)
@@ -42,6 +53,8 @@ void Current::StartMonitor(ShutdownInterup callBack)
         currentMeasurements[i] = maxCurrentHigh/2;
         longCurrentMeasurements[i] = maxCurrentHigh/2;
     }
+    shortAverageCurrent = maxCurrentHigh/2;
+    longAverageCurrent = maxCurrentHigh/2;
 
 
 
@@ -49,8 +62,8 @@ void Current::StartMonitor(ShutdownInterup callBack)
     {
         xTaskCreate(
             Loop,                     /* Function to implement the task */
-            "Orch",                   /* Name of the task */
-            5000,                     /* Stack size in words */
+            "Current",                   /* Name of the task */
+            2048,                     /* Stack size in words */
             this,                     /* Task input parameter */
             configMAX_PRIORITIES - 1, /* Priority of the task */
             &Task1                    /* Task handle. */
@@ -62,11 +75,22 @@ void Current::StartMonitor(ShutdownInterup callBack)
 void Current::Loop(void *pvParameters)
 {
     Current *p_pThis = static_cast<Current *>(pvParameters);
-   
-
-    p_pThis->CheckCurrent();
-
+    
+        p_pThis->RunMonitor();
+    
+    callBackOnOverCurrent();
     p_pThis->EndThread();
+}
+
+void Current::RunMonitor()
+{
+    shutdownTime = xTaskGetTickCount() + 60000;
+
+    while(shutdownTime > xTaskGetTickCount())
+    {
+        CheckCurrent();
+        vTaskDelay(10);
+    }
 }
 
 void Current::EndMonitor()
@@ -77,6 +101,7 @@ void Current::EndMonitor()
 void Current::EndThread()
 {
     vTaskDelete(Task1);
+    Serial.println("---------End current monitor");
 }
 
 void Current::AttachInteruptForOverCurrent(ShutdownInterup callBack)
@@ -94,9 +119,9 @@ void Current::CurrentInterupt()
     // currentAtLastInterupt = ina226->getBusPower();
 
     // delay(100);
-
-    if (((interuptCount > 0) || startInteruptCount == interuptCount) && callBackOnOverCurrent != NULL)
-        callBackOnOverCurrent();
+callBackOnOverCurrent();
+    //if (((interuptCount > 0) || startInteruptCount == interuptCount) && callBackOnOverCurrent != NULL)
+    //    callBackOnOverCurrent();
 }
 
 void Current::SetCurrentLimitPercentage(float percentage)
@@ -211,10 +236,15 @@ void Current::SetCurrentValue(Current::CurrentLevel level, bool closing)
 
 void Current::CheckCurrent()
 {
+    //Serial.println("CheckCurrent");
     currentMEasurementCounter++;
     ina226->readAndClearFlags();
     // float currentValue = ina226->getCurrent_mA();
     float bus = ina226->getBusPower();
+
+        //Serial.println("Finish read CheckCurrent");
+    if (bus < minCurrentRead || bus == currentMeasurements[SHORT_WINDOW_SIZE - 1])
+        return;
 
     float newAvergae = currentMeasurements[0];
     for (int i = 0; i < SHORT_WINDOW_SIZE - 1; i++)
@@ -225,10 +255,14 @@ void Current::CheckCurrent()
     currentMeasurements[SHORT_WINDOW_SIZE - 1] = bus;
     newAvergae = (newAvergae + bus) / 4.0;
     // Serial.print("Count = ") ; Serial.println(averageTouch );
+Serial.print("shortAverageCurrent = ") ; Serial.println(shortAverageCurrent );
+Serial.print("bus = ") ; Serial.println(bus );
+
     float currentShift = ((bus - shortAverageCurrent) / shortAverageCurrent);
 
     if (currentMEasurementCounter % LONG_WINDOW_COUNT == 0)
     {
+        currentMEasurementCounter = 0;
         float newLongAvergae = longCurrentMeasurements[0];
         for (int i = 0; i < SHORT_WINDOW_SIZE - 1; i++)
         {
@@ -238,14 +272,23 @@ void Current::CheckCurrent()
 
         newLongAvergae = (newLongAvergae + newAvergae) / 4.0;
 
-        if ( abs((longAverageCurrent - newLongAvergae)/longAverageCurrent) <0.03)
+        if ( abs((longAverageCurrent - newLongAvergae)/longAverageCurrent) <0.005)
         {
              Serial.println("Long average is not changing enough. ABORT");
-            callBackOnOverCurrent(); // Trigger the callback for over current
+            //callBackOnOverCurrent(); // Trigger the callback for over current
         }
 
         longAverageCurrent = newLongAvergae;
     }
+
+    //float adjustCurrentPercentage = (bus - )
+shortAverageCurrent = newAvergae;
+        Serial.print("Current Average: ");
+        Serial.println(shortAverageCurrent);
+        Serial.print("Long Average: ");
+        Serial.println(longAverageCurrent);
+        Serial.print("Current Shift:   ");
+        Serial.println(currentShift);
 
     if (currentShift > ALERT_PERCENTAGE)
     {
@@ -253,14 +296,7 @@ void Current::CheckCurrent()
         Serial.println("ALERT: Current shift is too high!");
         callBackOnOverCurrent(); // Trigger the callback for over current
     }
-    else
-    {
-        shortAverageCurrent = newAvergae;
-        Serial.print("Current Average: ");
-        Serial.println(shortAverageCurrent);
-        Serial.print("Current Shift:   ");
-        Serial.println(currentShift);
-    }
+   
 }
 
 void Current::PrintCurrent()

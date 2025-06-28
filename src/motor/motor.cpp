@@ -82,7 +82,7 @@ int Motor::GetCalibratedRunTime(bool force)
 
     while (!alert && (maxWaitTime > xTaskGetTickCount()))
     {
-        currentMonitor->PrintCurrent();
+        //currentMonitor->PrintCurrent();
         vTaskDelay(100);
     }
 
@@ -107,7 +107,7 @@ int Motor::GetCalibratedRunTime(bool force)
     while ((!alert) && (maxWaitTime > xTaskGetTickCount()))
     {
         vTaskDelay(100);
-        currentMonitor->PrintCurrent();
+        //currentMonitor->PrintCurrent();
     }
 
     currentMonitor->Reset();

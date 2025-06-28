@@ -42,12 +42,12 @@ void Button::Loop()
             longRunningAvg = ((longRunningAvg + averageTouch)/2)* 0.8;
 
 
-            Serial.print("Updating avergae. New average = ") ; Serial.println(longRunningAvg );
+            //Serial.print("Updating avergae. New average = ") ; Serial.println(longRunningAvg );
             if (longRunningAvg > 15)
             {
                 longRunningAvg = 15;
             }
-            Serial.print("final longRunningAvg = ") ; Serial.println(longRunningAvg );
+            //Serial.print("final longRunningAvg = ") ; Serial.println(longRunningAvg );
          }
      }
 

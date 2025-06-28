@@ -26,7 +26,7 @@ void Orch::StartMovement()
         xTaskCreate(
             Loop,   /* Function to implement the task */
             "Orch", /* Name of the task */
-            10000,  /* Stack size in words */
+            2048,  /* Stack size in words */
             this,   /* Task input parameter */
             1,      /* Priority of the task */
             &Task1  /* Task handle. */
