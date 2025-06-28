@@ -64,6 +64,7 @@ void Motor::CurrentInterupt()
 
 int Motor::GetCalibratedRunTime(bool force)
 {
+    currentMonitor->StartMonitor(Motor::CurrentInterupt);
     int cycleTime = 0;
     Serial.println("Perfomring calibration");
     currentMonitor->SetCurrentLimit(force ? Current::CurrentLevel::C_HIGH : Current::CurrentLevel::C_MEDIUM, true);
@@ -128,6 +129,7 @@ int Motor::GetCalibratedRunTime(bool force)
     Stop(true);
 
     currentMonitor->Reset();
+    currentMonitor->EndMonitor();
 
     return cycleTime;
 }

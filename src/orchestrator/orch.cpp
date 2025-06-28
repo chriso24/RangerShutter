@@ -86,6 +86,7 @@ void Orch::PerformCalibration()
 
 void Orch::ActionMovement()
 {
+    currentMonitor->StartMonitor(Motor::CurrentInterupt);
     int speed = fastSpeed;
     int timeForCycle = recordedTimeForCycle;
     bool isRecoveryRun = !finishedSuccessfully;
@@ -159,6 +160,6 @@ void Orch::ActionMovement()
         motorController->Stop(false);
     }
 
-
+    currentMonitor->EndMonitor();
     Serial.println("\nOrch shutdown");
 }
