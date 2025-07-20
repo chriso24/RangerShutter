@@ -30,7 +30,7 @@ void Reset();
     // void Reset();
 
 void CheckCurrent();
-    void StartMonitor(ShutdownInterup callBack);
+    void StartMonitor(ShutdownInterup callBack, bool slowRun);
     void EndMonitor();
 
     void SetCurrentLimit(CurrentLevel level, bool closing);
@@ -52,7 +52,7 @@ private:
 
 static const int SHORT_WINDOW_SIZE = 3;
 static const int LONG_WINDOW_COUNT = 10;
-static constexpr float ALERT_PERCENTAGE = 0.35;
+static constexpr float ALERT_PERCENTAGE = 0.45;
 
 const int I2C_SDA = 21;
 const int I2C_SCL = 22;
@@ -75,11 +75,11 @@ static const int movingAverageSizeLarge = 10;
 // static constexpr float maxCurrentUltraUltraLow = 340.0;
 
 
-static constexpr float maxCurrentHigh = 780.0;
+static constexpr float maxCurrentHigh = 850.0;
 // 560 is the max value the motor will draw at the low speed when stalled.
 static constexpr float maxCurrentLow = 780.0;
-static constexpr float maxCurrentUltraLow = 780.0;
-static constexpr float maxCurrentUltraUltraLow = 340.0;
+static constexpr float maxCurrentUltraLow = 450.0;
+static constexpr float maxCurrentUltraUltraLow = 380.0;
 
 static constexpr float minCurrentRead = 290.0;
 
@@ -93,6 +93,7 @@ static constexpr float minCurrentRead = 290.0;
     float shortAverageCurrent;
     float longAverageCurrent;
 
+    bool isSlowRun;
     long currentMEasurementCounter = 0;
 
     TickType_t shutdownTime;

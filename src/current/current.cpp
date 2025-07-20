@@ -33,8 +33,9 @@ void Current::Init()
     //    Init();
 }
 
-void Current::StartMonitor(ShutdownInterup callBack)
+void Current::StartMonitor(ShutdownInterup callBack, bool slowRun)
 {
+    isSlowRun = slowRun;
     if (Task1 != NULL)
     {
         eTaskState taskState = eTaskGetState(Task1);
@@ -255,13 +256,23 @@ void Current::CheckCurrent()
     currentMeasurements[SHORT_WINDOW_SIZE - 1] = bus;
     newAvergae = (newAvergae + bus) / 4.0;
     // Serial.print("Count = ") ; Serial.println(averageTouch );
-Serial.print("shortAverageCurrent = ") ; Serial.println(shortAverageCurrent );
-Serial.print("bus = ") ; Serial.println(bus );
+    shortAverageCurrent = newAvergae;
+//Serial.print("shortAverageCurrent = ") ; Serial.println(shortAverageCurrent );
+//Serial.print("bus = ") ; Serial.println(bus );
 
     float currentShift = ((bus - shortAverageCurrent) / shortAverageCurrent);
 
     if (currentMEasurementCounter % LONG_WINDOW_COUNT == 0)
     {
+                Serial.print("Current Average: ");
+        Serial.println(shortAverageCurrent);
+        Serial.print("Long Average: ");
+        Serial.println(longAverageCurrent);
+        Serial.print("Current Shift:   ");
+        Serial.println(currentShift);
+
+
+
         currentMEasurementCounter = 0;
         float newLongAvergae = longCurrentMeasurements[0];
         for (int i = 0; i < SHORT_WINDOW_SIZE - 1; i++)
@@ -272,23 +283,23 @@ Serial.print("bus = ") ; Serial.println(bus );
 
         newLongAvergae = (newLongAvergae + newAvergae) / 4.0;
 
-        if ( abs((longAverageCurrent - newLongAvergae)/longAverageCurrent) <0.005)
+        if ( abs((longAverageCurrent - newLongAvergae)/longAverageCurrent) <0.002 && longAverageCurrent < maxCurrentUltraUltraLow)
         {
+            if (!isSlowRun)
+            {
              Serial.println("Long average is not changing enough. ABORT");
-            //callBackOnOverCurrent(); // Trigger the callback for over current
+            callBackOnOverCurrent(); // Trigger the callback for over current
+            }
+            else
+            Serial.println("Long average is not changing enough. But slow run, so ignore.");
         }
 
         longAverageCurrent = newLongAvergae;
     }
 
     //float adjustCurrentPercentage = (bus - )
-shortAverageCurrent = newAvergae;
-        Serial.print("Current Average: ");
-        Serial.println(shortAverageCurrent);
-        Serial.print("Long Average: ");
-        Serial.println(longAverageCurrent);
-        Serial.print("Current Shift:   ");
-        Serial.println(currentShift);
+
+
 
     if (currentShift > ALERT_PERCENTAGE)
     {

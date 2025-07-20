@@ -86,7 +86,8 @@ void Orch::PerformCalibration()
 
 void Orch::ActionMovement()
 {
-    currentMonitor->StartMonitor(Motor::CurrentInterupt);
+    currentMonitor->Reset();
+    currentMonitor->StartMonitor(Motor::CurrentInterupt, false);
     int speed = fastSpeed;
     int timeForCycle = recordedTimeForCycle;
     bool isRecoveryRun = !finishedSuccessfully;

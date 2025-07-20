@@ -64,7 +64,7 @@ void Motor::CurrentInterupt()
 
 int Motor::GetCalibratedRunTime(bool force)
 {
-    currentMonitor->StartMonitor(Motor::CurrentInterupt);
+    currentMonitor->StartMonitor(Motor::CurrentInterupt, true);
     int cycleTime = 0;
     Serial.println("Perfomring calibration");
     currentMonitor->SetCurrentLimit(force ? Current::CurrentLevel::C_HIGH : Current::CurrentLevel::C_MEDIUM, true);
@@ -72,7 +72,7 @@ int Motor::GetCalibratedRunTime(bool force)
     // Move all the way in 1 direction until over current
 
     TickType_t startTickTime = xTaskGetTickCount();
-    TickType_t maxWaitTime = startTickTime + pdMS_TO_TICKS(20 * 1000);
+    TickType_t maxWaitTime = startTickTime + pdMS_TO_TICKS(25 * 1000);
 
     SetSpeedAndDirection(false, force ? fastSpeed : slowSpeed, 5, false);
 
