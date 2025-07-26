@@ -1,46 +1,40 @@
-#ifndef Orch_h
-#define Orch_h
-#include "Arduino.h" 
+bool finishedSuccessfully;
+
+#ifndef ORCH_H
+#define ORCH_H
+
+#include "Arduino.h"
 #include <motor/motor.h>
-
-
 
 class Orch {
 public:
-
     void StartMovement();
     bool AbortMovement();
     void ActionMovement();
     void Stop(bool emergency);
-    void Init(Motor* motorController,Current* currentMonitor);
+    void Init(Motor* motorController, Current* currentMonitor);
     void PerformCalibration();
     bool IsCalibrated();
     void EndThread();
-
     void Reset();
-
     static void Loop(void* p_pParam);
-    
+
 private:
     bool directionClose;
     Motor* motorController;
-Current* currentMonitor;
-int recordedTimeForCycle;
-
-bool finishedSuccessfully;
-
-
-
-const int rampingOnRun = 2000; // ticks
+    Current* currentMonitor;
+    int recordedTimeForCycle;
+    bool finishedSuccessfully;
+    const int rampingOnRun = 2000;
     const int slowSpeed = 80;
     const int recoverySpeed = 120;
-    const int fastSpeed = 255; // Max 255
-    const int maxRunTimeAtEnd = 10000;// seconds
-    
-    TaskHandle_t Task1;    
-    static const int OrchWakeTime = 1000; // seconds
+    const int fastSpeed = 255;
+    const int maxRunTimeAtEnd = 10000;
+    TaskHandle_t Task1;
+    static const int OrchWakeTime = 1000;
 };
-#endif
+
+#endif // ORCH_H
 
 
 

@@ -1,10 +1,7 @@
 #include "motor.h"
 #include "Arduino.h"
 
-// Motor* M;
-// static void irq_func() {
-//   M->Alert();
-// }
+
 
 volatile bool Motor::alert;
 volatile int Motor::alertCount;
@@ -12,7 +9,7 @@ Current *Motor::currentMonitor;
 byte Motor::inMotion;
 volatile int Motor::currentPositionEstimate;
 int Motor::CurrentSpeed;
-static void CurrentInterupt();
+
 
 Motor::Motor()
 {
@@ -190,9 +187,7 @@ void Motor::SetSpeedAndDirection(bool closing, int targetSpeed, int transitionTi
     Serial.println(CurrentSpeed);
 }
 
-void Motor::SetCurrentForSpeed(int speed)
-{
-}
+
 
 void Motor::Stop(bool emergency)
 {
