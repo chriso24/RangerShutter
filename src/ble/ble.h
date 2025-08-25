@@ -41,6 +41,8 @@ private:
     BLECharacteristic *pCharacteristic_tx;
     BLECharacteristic *pCharacteristic_rx;
     bool deviceConnected;
+    TickType_t lastMessageTime;
+    const TickType_t silenceTimeout = 1800000; // 30 minutes in ms
     float txValue;
     std::queue<std::string> logQueue;
     bleActivationCallback callBackOnUpdate;

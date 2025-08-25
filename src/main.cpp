@@ -49,6 +49,7 @@ void setupWifi()
 }
 
 void setup() {
+    enableLoopWDT();
     Serial.begin(115200);
     
     bleLogger.init(triggerFromBle);
@@ -93,7 +94,6 @@ void loop() {
         Serial.println("Woke up from light sleep");
         loopCountSinceSleep = 0;
     }
-
 
     vTaskDelay(10);
 }

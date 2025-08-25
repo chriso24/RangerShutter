@@ -38,7 +38,7 @@ public:
     void onConnect(BLEServer* pServer) {
         Serial.println("Device connected.");
       pBleLogger->deviceConnected = true;
-      pBleLogger->LogEvent("Device connected.");
+      pBleLogger->lastMessageTime = xTaskGetTickCount();
     };
 
     void onDisconnect(BLEServer* pServer) {
@@ -134,6 +134,13 @@ void BleLogger::loop() {
     if (!logMessage.empty()) {
         pCharacteristic_tx->setValue(logMessage);
         pCharacteristic_tx->notify();
+        lastMessageTime = xTaskGetTickCount();
+    }
+
+    if ((xTaskGetTickCount() - lastMessageTime) > silenceTimeout) {
+        LogEvent("Client disconnected due to inactivity");
+        pServer->disconnect(pServer->getConnId());
+        restartBleAdvertisment();
     }
   }
 }
