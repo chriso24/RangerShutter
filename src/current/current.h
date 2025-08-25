@@ -19,6 +19,7 @@ public:
     static void CurrentInterupt();
 
     void Init();
+    
     void AttachInteruptForOverCurrent(ShutdownInterup callBack);
     void ContinuousSampling();
     void Reset();
@@ -54,6 +55,7 @@ private:
     static constexpr float maxCurrentUltraUltraLow = 380.0;
     static constexpr float minCurrentRead = 290.0;
     static INA226_WE* ina226;
+    void StartupIna226();
     bool CheckInit();
     void SetCurrentValue(CurrentLevel level, bool closing);
     float currentMeasurements[SHORT_WINDOW_SIZE];

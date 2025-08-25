@@ -1,12 +1,15 @@
 #include "Orch.h"
-
+#include <Preferences.h>
 
 Orch::Orch(ILogger* logger) : logger(logger), directionClose(false), motorController(nullptr), currentMonitor(nullptr), recordedTimeForCycle(0), finishedSuccessfully(false) {}
 
 
 void Orch::Init(Motor *moto, Current *current)
 {
-    recordedTimeForCycle = 0;
+    preferences.begin("Triton", false);
+    recordedTimeForCycle = preferences.getInt("recordedTimeForCycle", 0);
+    directionClose = preferences.getBool("directionClose", false);
+
     motorController = moto;
     currentMonitor = current;
 }
@@ -16,22 +19,29 @@ void Orch::Reset()
 {
     AbortMovement();
     recordedTimeForCycle = 0;
-
-    StartMovement();
+    preferences.clear();
+    StartMovement(TOGGLE);
 }
 
-void Orch::StartMovement()
+void Orch::StartMovement(Command direction)
 {
-
     bool wasRunning = AbortMovement();
 
     if (!wasRunning)
     {
-        directionClose = !directionClose;
+        if (direction == TOGGLE)
+        {
+            directionClose = !directionClose;
+        }
+        else
+        {
+            directionClose = direction == CLOSE;
+        }
+
         xTaskCreate(
             Loop,   /* Function to implement the task */
             "Orch", /* Name of the task */
-            2048,  /* Stack size in words */
+            2048,   /* Stack size in words */
             this,   /* Task input parameter */
             1,      /* Priority of the task */
             &Task1  /* Task handle. */
@@ -74,6 +84,16 @@ void Orch::EndThread()
     vTaskDelete(Task1);
 }
 
+bool Orch::isIdle()
+{
+    if (Task1 == NULL)
+    {
+        return true;
+    }
+    eTaskState taskState = eTaskGetState(Task1);
+    return taskState == eDeleted || taskState == eInvalid;
+}
+
 bool Orch::IsCalibrated()
 {
     return recordedTimeForCycle > 0;
@@ -86,7 +106,12 @@ void Orch::PerformCalibration()
     if (recordedTimeForCycle == 0)
         recordedTimeForCycle = motorController->GetCalibratedRunTime(true);
 
-    finishedSuccessfully = true;
+    if (recordedTimeForCycle > 0)
+    {
+        finishedSuccessfully = true;
+
+        preferences.putInt("recordedTimeForCycle", recordedTimeForCycle);
+    }
 }
 
 void Orch::ActionMovement()
@@ -162,6 +187,8 @@ void Orch::ActionMovement()
         }
         motorController->Stop(false);
     }
+
+    preferences.putBool("directionClose", directionClose);
 
     currentMonitor->EndMonitor();
     logger->LogEvent("\nOrch shutdown");

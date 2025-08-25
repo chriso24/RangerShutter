@@ -4,12 +4,20 @@
 #include "Arduino.h"
 #include "../logger/ILogger.h"
 #include <motor/motor.h>
+#include <Preferences.h>
 
 class Orch {
 public:
+
+    enum Command {
+        OPEN,
+        CLOSE,
+        TOGGLE
+    };
+
     Orch(ILogger* logger);
     void Init(Motor* motorController, Current* currentMonitor);
-    void StartMovement();
+    void StartMovement(Command direction);
     bool AbortMovement();
     void ActionMovement();
     void Stop(bool emergency);
@@ -17,10 +25,12 @@ public:
     bool IsCalibrated();
     void EndThread();
     void Reset();
+    bool isIdle();
     static void Loop(void* p_pParam);
 
 private:
     ILogger* logger;
+    Preferences preferences;
     bool directionClose;
     Motor* motorController;
     Current* currentMonitor;

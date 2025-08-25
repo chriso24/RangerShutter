@@ -1,5 +1,5 @@
-
 #include <Arduino.h>
+#include <esp_sleep.h>
 
 
 #include "motor/motor.h"
@@ -14,7 +14,7 @@ Current currentMonitor(&bleLogger);
 Motor motorController(&bleLogger);
 Button button;
 Orch orchestrator(&bleLogger);
-//Wifi wifi;
+Wifi wifi(&bleLogger);
 
 
 void WifiUpdateStarting() {
@@ -30,20 +30,30 @@ void WifiUpdateStarting() {
 }
 
 
-void triggerFromBle() {
-    // TODO: Shutdown everything
-    bleLogger.LogEvent("Toggle shutter from BLE");
-    orchestrator.StartMovement();
+void triggerFromBle(BleLogger::Command command) {
+    bleLogger.LogEvent("Toggle shutter from BLE.");
+
+    if (command == BleLogger::Command::OPEN) {
+        orchestrator.StartMovement(Orch::OPEN);
+    } else if (command == BleLogger::Command::CLOSE) {
+        orchestrator.StartMovement(Orch::CLOSE);
+    } else if (command == BleLogger::Command::RESET) {
+        orchestrator.Reset();
+    }
 }
 
-
+void setupWifi()
+{
+    if (wifi.Init(WifiUpdateStarting))
+        wifi.StartWifi();
+}
 
 void setup() {
     Serial.begin(115200);
     
     bleLogger.init(triggerFromBle);
-    //wifi.Init(WifiUpdateStarting);
-    //wifi.StartWifi();
+    setupWifi();
+
     button.Init();
     //currentMonitor.Init();
     //motorController.Init(&currentMonitor);
@@ -52,8 +62,8 @@ void setup() {
     Serial.println("\nTriton management starting");
 }
 
-unsigned long previousMillis = 0; // Stores the last time the message was printed
-const long interval = 1000;       // Interval at which to print (1000 milliseconds = 1 second)
+unsigned long loopCountSinceSleep = 0; // Stores the last time the message was printed
+const long awakeTime = 100;  // loops
 
 
 
@@ -61,21 +71,31 @@ void loop() {
     button.Loop();
     bleLogger.loop();
     motorController.Loop();
-    unsigned long currentMillis = millis(); // Get the current time
-    if (currentMillis - previousMillis >= interval) {
-        previousMillis = currentMillis; // Update the last printed time
-        // Print the message
-        bleLogger.LogEvent(("Hello " + String(currentMillis)).c_str());
-    }
+    loopCountSinceSleep++;
+    //unsigned long currentMillis = millis(); // Get the current time
+    // if (currentMillis - previousMillis >= interval) {
+    //     previousMillis = currentMillis; // Update the last printed time
+    //     // Print the message
+    //     //setupWifi();
+    // }
 
     if (button.ButtonPressed()) {
-        orchestrator.StartMovement();
+        orchestrator.StartMovement(Orch::TOGGLE);
     } else if (button.ButtonLongPressed()) {
         orchestrator.Reset();
     }
 
+    if (orchestrator.isIdle() && !bleLogger.isConnected() && loopCountSinceSleep > awakeTime) {
+        Serial.println("Entering light sleep");
+        esp_sleep_enable_touchpad_wakeup();
+        esp_sleep_enable_timer_wakeup(1000000); // 1 second
+        esp_light_sleep_start();
+        Serial.println("Woke up from light sleep");
+        loopCountSinceSleep = 0;
+    }
 
-    vTaskDelay(80);
+
+    vTaskDelay(10);
 }
 
 

@@ -1,3 +1,4 @@
+
 #include "wifi.h"
 #include "Arduino.h"
 #include <WiFi.h>
@@ -5,18 +6,30 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 
+Wifi::Wifi(ILogger* logger) : logger(logger) {}
 
-
-void Wifi::Init(wifiShutdownCallback callBackShutdown)
+bool Wifi::Init(wifiShutdownCallback callBackShutdown)
 {
+    if (WiFi.waitForConnectResult() == WL_CONNECTED)
+    {
+        // Already connected. Quit.
+        return false;
+    }
+
     this->callBackOnUpdate = callBackShutdown;
     WiFi.mode(WIFI_STA);
-    WiFi.begin(ssid, password);
-    while (WiFi.waitForConnectResult() != WL_CONNECTED)
+    WiFi.begin(ssid, password);    TickType_t startTickTime = xTaskGetTickCount();
+
+    while (WiFi.waitForConnectResult() != WL_CONNECTED &&
+           (xTaskGetTickCount() - startTickTime) < pdMS_TO_TICKS(10000))
     {
-        Serial.println("Connection Failed! Rebooting...");
-        delay(1000);
-        ESP.restart();
+        delay(500);
+    }
+
+    if (WiFi.waitForConnectResult() != WL_CONNECTED)
+    {
+        Serial.println("Wifi connection not available.");
+        return false;
     }
 
     ArduinoOTA.setPassword(password);
@@ -52,9 +65,10 @@ Serial.println("Wifi update starting, shuting down system.");
 
     ArduinoOTA.begin();
 
-    Serial.println("Ready");
-    Serial.print("IP address: ");
-    Serial.println(WiFi.localIP());
+    Serial.println("Wifi Ready");
+    logger->LogEvent("WiFi connected with IP: " + std::string(WiFi.localIP().toString().c_str()));
+
+    return true;
 }
 
 void Wifi::StartWifi()

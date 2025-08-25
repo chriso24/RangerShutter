@@ -16,12 +16,20 @@
 
 class BleLogger : public ILogger {
 public:
-    typedef void(*bleActivationCallback)(void);
+    enum Command {
+        OPEN,
+        CLOSE,
+        RESET
+    };
+    typedef void(*bleActivationCallback)(Command);
 
     BleLogger();
     void init(bleActivationCallback callBackShutdown);
+    void restartBleAdvertisment();
     void loop();
     void LogEvent(const std::string& message) override;
+    bool isConnected();
+    
 
 private:
     std::string getNextLog();
@@ -29,6 +37,7 @@ private:
     class MyServerCallbacks;
     class MyCallbacks;
 
+    BLEServer *pServer;
     BLECharacteristic *pCharacteristic_tx;
     BLECharacteristic *pCharacteristic_rx;
     bool deviceConnected;

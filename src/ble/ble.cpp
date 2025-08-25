@@ -38,11 +38,13 @@ public:
     void onConnect(BLEServer* pServer) {
         Serial.println("Device connected.");
       pBleLogger->deviceConnected = true;
+      pBleLogger->LogEvent("Device connected.");
     };
 
     void onDisconnect(BLEServer* pServer) {
         Serial.println("Device disconnected.");
       pBleLogger->deviceConnected = false;
+      pBleLogger->restartBleAdvertisment();
     }
 };
 
@@ -51,9 +53,7 @@ class BleLogger::MyCallbacks: public BLECharacteristicCallbacks {
 public:
     MyCallbacks(BleLogger* logger) : pBleLogger(logger) {}
     void onRead(BLECharacteristic *pCharacteristic) {
-        // char txString[8]; // make sure this is big enuffz
-        // dtostrf(pBleLogger->txValue, 1, 2, txString); // float_val, min_width, digits_after_decimal, char_buffer
-        // pCharacteristic->setValue(txString);
+
         Serial.println("Ble onRead");
     }
     void onWrite(BLECharacteristic *pCharacteristic) {
@@ -76,7 +76,7 @@ void BleLogger::init(bleActivationCallback callBack) {
   BLEDevice::init("Mighty"); // Give it a name
 
   // Create the BLE Server
-  BLEServer *pServer = BLEDevice::createServer();
+  pServer = BLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks(this));
 
   // Create the BLE Service
@@ -106,10 +106,16 @@ void BleLogger::init(bleActivationCallback callBack) {
   pServer->getAdvertising()->start();
 }
 
+void BleLogger::restartBleAdvertisment() {
+    pServer->getAdvertising()->start();
+}
+
 void BleLogger::LogEvent(const std::string& message) {
-    if (deviceConnected) {
-        logQueue.push(message);
+    if (logQueue.size() > 100) {
+        logQueue.pop(); // Remove oldest message if queue is too large
     }
+    logQueue.push(message);
+
     Serial.println(message.c_str());
 }
 
@@ -133,5 +139,23 @@ void BleLogger::loop() {
 }
 
 void BleLogger::recieveMessage(const std::string& message) {
-    this->callBackOnUpdate();
+    if (message == "Open") {
+        LogEvent("Received open command via BLE");
+        this->callBackOnUpdate(Command::OPEN);
+    }
+    else if (message == "Close") {
+        LogEvent("Received close command via BLE");
+        this->callBackOnUpdate(Command::CLOSE);
+    }
+    else if (message == "Reset") {
+        LogEvent("Reset command via BLE");
+        this->callBackOnUpdate(Command::RESET);
+    }
+    else
+        LogEvent("Received unknown command via BLE");
+    
+}
+
+bool BleLogger::isConnected() {
+    return deviceConnected;
 }

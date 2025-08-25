@@ -16,18 +16,26 @@ void Current::Init()
     ina226 = new INA226_WE(I2C_ADDRESS);
     logger->LogEvent("Current Init");
     Wire.begin(I2C_SDA, I2C_SCL);
+    StartupIna226();
+    pinMode(2, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(2), Current::CurrentInterupt, FALLING);
+}
+
+void Current::StartupIna226()
+{
     ina226->init();
 
     ina226->setResistorRange(1, 10.0);
     ina226->setMeasureMode(CONTINUOUS);
     ina226->setAlertType(POWER_OVER, maxCurrentLow);
     ina226->setAlertPinActiveHigh();
-    pinMode(2, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(2), Current::CurrentInterupt, FALLING);
 }
 
 void Current::StartMonitor(ShutdownInterup callBack, bool slowRun)
 {
+    ina226->powerUp();
+    StartupIna226();
+
     isSlowRun = slowRun;
     if (Task1 != NULL)
     {
@@ -88,13 +96,14 @@ void Current::RunMonitor()
 
 void Current::EndMonitor()
 {
+    ina226->powerDown();
     EndThread();
 }
 
 void Current::EndThread()
 {
     vTaskDelete(Task1);
-    logger->LogEvent("---------End current monitor");
+    logger->LogEvent("End current monitor");
 }
 
 void Current::AttachInteruptForOverCurrent(ShutdownInterup callBack)

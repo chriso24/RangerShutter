@@ -3,17 +3,20 @@
 #define WIFI_H
 
 #include "Arduino.h"
+#include "../logger/ILogger.h"
 
 class Wifi {
 public:
     typedef void(*wifiShutdownCallback)(void);
+    Wifi(ILogger* logger);
     void StartWifi();
-    void Init(wifiShutdownCallback callBackShutdown);
+    bool Init(wifiShutdownCallback callBackShutdown);
     void HandleWifi();
     static void Loop(void* p_pParam);
 
 private:
-    const char* ssid = "Triton";
+    ILogger* logger;
+    const char* ssid = "Wiffy5G";
     const char* password = "29232681";
     volatile TickType_t shutdownWifiAt;
     wifiShutdownCallback callBackOnUpdate;
