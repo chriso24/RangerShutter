@@ -1,9 +1,9 @@
-
 #ifndef MOTOR_H
 #define MOTOR_H
 
 #include "Arduino.h"
 #include "../current/current.h"
+#include "../logger/ILogger.h"
 
 class Motor {
 public:
@@ -17,7 +17,7 @@ public:
     static int CurrentSpeed;
     byte CurrentDirection;
 
-    Motor();
+    Motor(ILogger* logger);
     void Move(byte direction);
     void Stop(bool emergency);
     void Init(Current* current);
@@ -28,6 +28,7 @@ public:
     int GetCalibratedRunTime(bool force);
 
 private:
+    ILogger* logger;
     TickType_t timeAtLastSpeedChange;
     static Current* currentMonitor;
     int timeForFullCycle = 0;

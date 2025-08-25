@@ -1,11 +1,16 @@
 #include "Orch.h"
 
+
+Orch::Orch(ILogger* logger) : logger(logger), directionClose(false), motorController(nullptr), currentMonitor(nullptr), recordedTimeForCycle(0), finishedSuccessfully(false) {}
+
+
 void Orch::Init(Motor *moto, Current *current)
 {
     recordedTimeForCycle = 0;
     motorController = moto;
     currentMonitor = current;
 }
+
 
 void Orch::Reset()
 {
@@ -98,31 +103,28 @@ void Orch::ActionMovement()
     }
     
     finishedSuccessfully = false;
-    Serial.println("\nOrch start");
-
-    
+    logger->LogEvent("\nOrch start");
 
     if (!directionClose)
     {
-        Serial.println("Close");
+        logger->LogEvent("Close");
         timeForCycle = timeForCycle * 1.05;
     }
 
-    Serial.print("Cycle time = ");
-    Serial.println(timeForCycle);
+    logger->LogEvent("Cycle time = " + std::string(String(timeForCycle).c_str()));
 
     TickType_t startTick = xTaskGetTickCount();
 
     currentMonitor->Reset();
     currentMonitor->SetCurrentLimit(Current::CurrentLevel::C_HIGH, !directionClose);
     vTaskDelay(200);
-    Serial.println("\nCurrent limit max");
+    logger->LogEvent("\nCurrent limit max");
 
     motorController->SetSpeedAndDirection(directionClose, speed, 3, false);
 
     vTaskDelay(rampingOnRun);
 
-    Serial.println("\nCurrent limit normal");
+    logger->LogEvent("\nCurrent limit normal");
 
     currentMonitor->SetCurrentLimit(isRecoveryRun ? Current::CurrentLevel::C_LOW : Current::CurrentLevel::C_HIGH, !directionClose);
 
@@ -132,12 +134,12 @@ void Orch::ActionMovement()
         vTaskDelay(100);
     }
 
-    Serial.println("Slowing things down for end of cycle");
+    logger->LogEvent("Slowing things down for end of cycle");
 
     if (!isRecoveryRun)
     if (motorController->IsRunning())
     {
-        Serial.println("Success run");
+        logger->LogEvent("Success run");
         finishedSuccessfully = true;
         motorController->SetSpeedAndDirection(directionClose, slowSpeed, 5, true);
         vTaskDelay(1500);
@@ -145,7 +147,7 @@ void Orch::ActionMovement()
     }
     else
     {
-        Serial.println("Fail run");
+        logger->LogEvent("Fail run");
     }
 
     if (isRecoveryRun)
@@ -162,5 +164,5 @@ void Orch::ActionMovement()
     }
 
     currentMonitor->EndMonitor();
-    Serial.println("\nOrch shutdown");
+    logger->LogEvent("\nOrch shutdown");
 }

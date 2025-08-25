@@ -13,7 +13,7 @@ public:
     static void Loop(void* p_pParam);
 
 private:
-    const char* ssid = "Wiffy5G";
+    const char* ssid = "Triton";
     const char* password = "29232681";
     volatile TickType_t shutdownWifiAt;
     wifiShutdownCallback callBackOnUpdate;

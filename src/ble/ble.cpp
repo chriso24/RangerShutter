@@ -1,0 +1,137 @@
+/*
+   control app https://x.thunkable.com/copy/e8f633a8a9a3e979025112e18446d3b4
+    Video: https://wwwtube.com/watch?v=oCMOYS71NIU
+    Based on Neil Kolban example for IDF: https://github.com/nkolban/esp32-snippets/blob/master/cpp_utils/tests/BLE%20Tests/SampleNotify.cpp
+    Ported to Arduino ESP32 by Evandro Copercini
+
+   Create a BLE server that, once we receive a connection, will send periodic notifications.
+   The service advertises itself as: 6E400001-B5A3-F393-E0A9-E50E24DCCA9E
+   Has a characteristic of: 6E400002-B5A3-F393-E0A9-E50E24DCCA9E - used for receiving data with "WRITE" 
+   Has a characteristic of: 6E400003-B5A3-F393-E0A9-E50E24DCCA9E - used to send data with  "NOTIFY"
+
+   The design of creating the BLE server is:
+   1. Create a BLE Server
+   2. Create a BLE Service
+   3. Create a BLE Characteristic on the Service
+   4. Create a BLE Descriptor on the characteristic
+   5. Start the service.
+   6. Start advertising.
+
+   In this example rxValue is the data received (only accessible inside that function).
+   And txValue is the data to be sent, in this example just a byte incremented every second. 
+*/
+#include <Arduino.h>
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
+#include "ble.h"
+
+#define SERVICE_UUID           "1e8f8e98-d58a-437a-96ac-de446ddde3d3" // UART service UUID
+#define CHARACTERISTIC_UUID_RX "5c374371-7f68-4af7-a24b-880868a65f0e"
+#define CHARACTERISTIC_UUID_TX "dc66407a-798b-4412-b36a-f816ba8726d3"
+
+class BleLogger::MyServerCallbacks: public BLEServerCallbacks {
+    BleLogger* pBleLogger;
+public:
+    MyServerCallbacks(BleLogger* logger) : pBleLogger(logger) {}
+    void onConnect(BLEServer* pServer) {
+        Serial.println("Device connected.");
+      pBleLogger->deviceConnected = true;
+    };
+
+    void onDisconnect(BLEServer* pServer) {
+        Serial.println("Device disconnected.");
+      pBleLogger->deviceConnected = false;
+    }
+};
+
+class BleLogger::MyCallbacks: public BLECharacteristicCallbacks {
+    BleLogger* pBleLogger;
+public:
+    MyCallbacks(BleLogger* logger) : pBleLogger(logger) {}
+    void onRead(BLECharacteristic *pCharacteristic) {
+        // char txString[8]; // make sure this is big enuffz
+        // dtostrf(pBleLogger->txValue, 1, 2, txString); // float_val, min_width, digits_after_decimal, char_buffer
+        // pCharacteristic->setValue(txString);
+        Serial.println("Ble onRead");
+    }
+    void onWrite(BLECharacteristic *pCharacteristic) {
+        std::string rxValue = pCharacteristic->getValue();
+
+        Serial.println("Ble onWrite");
+      if (rxValue.length() > 0) {
+      pBleLogger->recieveMessage(rxValue);
+    }
+}
+};
+
+BleLogger::BleLogger() : pCharacteristic_tx(nullptr), pCharacteristic_rx(nullptr), deviceConnected(false), txValue(0) {}
+
+void BleLogger::init(bleActivationCallback callBack) {
+
+    this->callBackOnUpdate = callBack;
+
+    // Create the BLE Device
+  BLEDevice::init("Mighty"); // Give it a name
+
+  // Create the BLE Server
+  BLEServer *pServer = BLEDevice::createServer();
+  pServer->setCallbacks(new MyServerCallbacks(this));
+
+  // Create the BLE Service
+  BLEService *pService = pServer->createService(SERVICE_UUID);
+
+  // Create a BLE Characteristic for TX
+  pCharacteristic_tx = pService->createCharacteristic(
+                      CHARACTERISTIC_UUID_TX,
+                      BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
+                    );
+                      
+  pCharacteristic_tx->addDescriptor(new BLE2902());
+  pCharacteristic_tx->setCallbacks(new MyCallbacks(this));
+
+  // Create a BLE Characteristic for RX
+  pCharacteristic_rx = pService->createCharacteristic(
+                                         CHARACTERISTIC_UUID_RX,
+                                         BLECharacteristic::PROPERTY_WRITE
+                                       );
+
+  pCharacteristic_rx->setCallbacks(new MyCallbacks(this));
+
+  // Start the service
+  pService->start();
+
+  // Start advertising
+  pServer->getAdvertising()->start();
+}
+
+void BleLogger::LogEvent(const std::string& message) {
+    if (deviceConnected) {
+        logQueue.push(message);
+    }
+    Serial.println(message.c_str());
+}
+
+std::string BleLogger::getNextLog() {
+    if (logQueue.empty()) {
+        return "";
+    }
+    std::string message = logQueue.front();
+    logQueue.pop();
+    return message;
+}
+
+void BleLogger::loop() {
+  if (deviceConnected) {
+    std::string logMessage = getNextLog();
+    if (!logMessage.empty()) {
+        pCharacteristic_tx->setValue(logMessage);
+        pCharacteristic_tx->notify();
+    }
+  }
+}
+
+void BleLogger::recieveMessage(const std::string& message) {
+    this->callBackOnUpdate();
+}

@@ -1,18 +1,18 @@
-bool finishedSuccessfully;
-
 #ifndef ORCH_H
 #define ORCH_H
 
 #include "Arduino.h"
+#include "../logger/ILogger.h"
 #include <motor/motor.h>
 
 class Orch {
 public:
+    Orch(ILogger* logger);
+    void Init(Motor* motorController, Current* currentMonitor);
     void StartMovement();
     bool AbortMovement();
     void ActionMovement();
     void Stop(bool emergency);
-    void Init(Motor* motorController, Current* currentMonitor);
     void PerformCalibration();
     bool IsCalibrated();
     void EndThread();
@@ -20,6 +20,7 @@ public:
     static void Loop(void* p_pParam);
 
 private:
+    ILogger* logger;
     bool directionClose;
     Motor* motorController;
     Current* currentMonitor;

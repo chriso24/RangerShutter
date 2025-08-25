@@ -4,7 +4,6 @@
 #include <ESPmDNS.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
-#include <functional>
 
 
 
@@ -77,7 +76,7 @@ void Wifi::StartWifi()
             "Wifi",   /* Name of the task */
             10000,              /* Stack size in words */
             this,               /* Task input parameter */
-            1,                  /* Priority of the task */
+            2,                  /* Priority of the task */
             &Task1,             /* Task handle. */
             1);                 /* Core where the task should run */
 }

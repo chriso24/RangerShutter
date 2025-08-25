@@ -3,6 +3,7 @@
 
 #include "Arduino.h"
 #include <INA226_WE.h>
+#include "../logger/ILogger.h"
 
 class Current {
 public:
@@ -13,6 +14,7 @@ public:
         C_HIGH
     };
 
+    Current(ILogger* logger);
     typedef void(*ShutdownInterup)(void);
     static void CurrentInterupt();
 
@@ -31,6 +33,7 @@ public:
     void RunMonitor();
 
 private:
+    ILogger* logger;
     static const int SHORT_WINDOW_SIZE = 3;
     static const int LONG_WINDOW_COUNT = 10;
     static constexpr float ALERT_PERCENTAGE = 0.45;

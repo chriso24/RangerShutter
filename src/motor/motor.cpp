@@ -11,7 +11,7 @@ volatile int Motor::currentPositionEstimate;
 int Motor::CurrentSpeed;
 
 
-Motor::Motor()
+Motor::Motor(ILogger* logger) : logger(logger)
 {
     CurrentSpeed = 0;
     CurrentDirection = 0;
@@ -63,10 +63,8 @@ int Motor::GetCalibratedRunTime(bool force)
 {
     currentMonitor->StartMonitor(Motor::CurrentInterupt, true);
     int cycleTime = 0;
-    Serial.println("Perfomring calibration");
+    logger->LogEvent("Performing calibration");
     currentMonitor->SetCurrentLimit(force ? Current::CurrentLevel::C_HIGH : Current::CurrentLevel::C_MEDIUM, true);
-    // We need to calibrate
-    // Move all the way in 1 direction until over current
 
     TickType_t startTickTime = xTaskGetTickCount();
     TickType_t maxWaitTime = startTickTime + pdMS_TO_TICKS(25 * 1000);
@@ -75,36 +73,33 @@ int Motor::GetCalibratedRunTime(bool force)
 
     vTaskDelay(700);
     currentMonitor->SetCurrentLimit(Current::CurrentLevel::C_LOW,true);
-    Serial.println("Waiting for end of track....");
+    logger->LogEvent("Waiting for end of track....");
 
     while (!alert && (maxWaitTime > xTaskGetTickCount()))
     {
-        //currentMonitor->PrintCurrent();
         vTaskDelay(100);
     }
 
     currentMonitor->Reset();
     Stop(true);
-    Serial.println("Found the end.");
+    logger->LogEvent("Found the end.");
 
-    // Back the other way
     startTickTime = xTaskGetTickCount();
     maxWaitTime = startTickTime + pdMS_TO_TICKS(20 * 1000);
     currentMonitor->SetCurrentLimit(force ? Current::CurrentLevel::C_HIGH : Current::CurrentLevel::C_MEDIUM, false);
 
-    Serial.println("Back the other way.");
+    logger->LogEvent("Back the other way.");
 
-    SetSpeedAndDirection(true, slowSpeed, 5, false);
+    SetSpeedAndDirection(true,  force ? fastSpeed : slowSpeed, 5, false);
 
     currentMonitor->Reset();
     vTaskDelay(700);
     currentMonitor->SetCurrentLimit(Current::CurrentLevel::C_LOW, false);
-    Serial.println("Waiting for end of track....");
+    logger->LogEvent("Waiting for end of track....");
 
     while ((!alert) && (maxWaitTime > xTaskGetTickCount()))
     {
         vTaskDelay(100);
-        //currentMonitor->PrintCurrent();
     }
 
     currentMonitor->Reset();
@@ -115,14 +110,11 @@ int Motor::GetCalibratedRunTime(bool force)
     if (cycleTime <= minCycleTime)
     {
         cycleTime = 0;
-        Serial.println("Cycle too short!");
+        logger->LogEvent("Cycle too short!");
     }
 
-    Serial.print("Found the end after ");
-    Serial.print(cycleTime) +
-        Serial.println(" cycles.");
+    logger->LogEvent("Found the end after " + std::string(String(cycleTime).c_str()) + " cycles.");
 
-    // Perform stop here just incase we times out waiting for ends
     Stop(true);
 
     currentMonitor->Reset();
@@ -133,16 +125,14 @@ int Motor::GetCalibratedRunTime(bool force)
 
 bool Motor::IsRunning()
 {
-    Serial.print("Current Speed = ");
-    Serial.println(CurrentSpeed);
-    Serial.print("Reset Count = ");
-    Serial.println(alertCount);
+    logger->LogEvent("Current Speed = " + std::string(String(CurrentSpeed).c_str()));
+    logger->LogEvent("Reset Count = " + std::string(String(alertCount).c_str()));
     return CurrentSpeed > 0;
 }
 
 void Motor::SetSpeedAndDirection(bool closing, int targetSpeed, int transitionTime, bool manageCurrent)
 {
-    Serial.println("Set speed and direction");
+    logger->LogEvent("Set speed and direction");
     alert = false;
     alertCount = 0;
 
@@ -157,7 +147,7 @@ void Motor::SetSpeedAndDirection(bool closing, int targetSpeed, int transitionTi
             vTaskDelay(transitionTime);
             if (alert)
             {
-                Serial.println("Abort movement");
+                logger->LogEvent("Abort movement");
                 break;
             }
 
@@ -174,7 +164,7 @@ void Motor::SetSpeedAndDirection(bool closing, int targetSpeed, int transitionTi
             vTaskDelay(transitionTime);
             if (alert)
             {
-                Serial.println("Abort movement");
+                logger->LogEvent("Abort movement");
                 break;
             }
 
@@ -183,8 +173,7 @@ void Motor::SetSpeedAndDirection(bool closing, int targetSpeed, int transitionTi
         }
     }
 
-    Serial.print("Finished setting motor speed. Current speed = ");
-    Serial.println(CurrentSpeed);
+    logger->LogEvent("Finished setting motor speed. Current speed = " + std::string(String(CurrentSpeed).c_str()));
 }
 
 
@@ -192,8 +181,7 @@ void Motor::SetSpeedAndDirection(bool closing, int targetSpeed, int transitionTi
 void Motor::Stop(bool emergency)
 {
     inMotion = 0;
-    Serial.print("Stop triggered at position ");
-    Serial.println(currentPositionEstimate);
+    logger->LogEvent("Stop triggered at position " + std::string(String(currentPositionEstimate).c_str()));
     for (int i = CurrentSpeed; i >= 0; i--)
     {
         analogWrite(CurrentDirection ? motor_R : motor_L, i);
