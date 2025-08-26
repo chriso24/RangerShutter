@@ -34,9 +34,9 @@ void triggerFromBle(BleLogger::Command command) {
     bleLogger.LogEvent("Toggle shutter from BLE.");
 
     if (command == BleLogger::Command::OPEN) {
-        orchestrator.StartMovement(Orch::OPEN);
+        orchestrator.StartMovement(Orch::TOGGLE);
     } else if (command == BleLogger::Command::CLOSE) {
-        orchestrator.StartMovement(Orch::CLOSE);
+        orchestrator.StartMovement(Orch::TOGGLE);
     } else if (command == BleLogger::Command::RESET) {
         orchestrator.Reset();
     }
@@ -56,9 +56,9 @@ void setup() {
     setupWifi();
 
     button.Init();
-    //currentMonitor.Init();
-    //motorController.Init(&currentMonitor);
-    //orchestrator.Init(&motorController, &currentMonitor);
+    currentMonitor.Init();
+    motorController.Init(&currentMonitor);
+    orchestrator.Init(&motorController, &currentMonitor);
 
     Serial.println("\nTriton management starting");
 }
@@ -87,11 +87,11 @@ void loop() {
     }
 
     if (orchestrator.isIdle() && !bleLogger.isConnected() && loopCountSinceSleep > awakeTime) {
-        Serial.println("Entering light sleep");
+        //Serial.println("Entering light sleep");
         esp_sleep_enable_touchpad_wakeup();
         esp_sleep_enable_timer_wakeup(1000000); // 1 second
-        esp_light_sleep_start();
-        Serial.println("Woke up from light sleep");
+        //esp_light_sleep_start();
+        //Serial.println("Woke up from light sleep");
         loopCountSinceSleep = 0;
     }
 
