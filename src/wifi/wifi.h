@@ -21,7 +21,7 @@ private:
     volatile TickType_t shutdownWifiAt;
     wifiShutdownCallback callBackOnUpdate;
     TaskHandle_t Task1;
-    static const int WifiWakeTime = 1000;
+    static const int WifiWakeTime = 240; // seconds
 };
 
 #endif // WIFI_H

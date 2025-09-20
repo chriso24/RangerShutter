@@ -19,7 +19,8 @@ public:
     enum Command {
         OPEN,
         CLOSE,
-        RESET
+        RESET,
+        WIFI
     };
     typedef void(*bleActivationCallback)(Command);
 
@@ -33,15 +34,17 @@ public:
 
 private:
     std::string getNextLog();
-    void recieveMessage(const std::string& message);
+    bool isLogMessageReady();
+    void recieveMessage(const std::string &message);
     class MyServerCallbacks;
     class MyCallbacks;
 
     BLEServer *pServer;
     BLECharacteristic *pCharacteristic_tx;
     BLECharacteristic *pCharacteristic_rx;
-    bool deviceConnected;
+    bool deviceConnected = false;
     TickType_t lastMessageTime;
+    TickType_t startSendingMessagesAt;
     const TickType_t silenceTimeout = 1800000; // 30 minutes in ms
     float txValue;
     std::queue<std::string> logQueue;

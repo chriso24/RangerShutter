@@ -39,6 +39,9 @@ void triggerFromBle(BleLogger::Command command) {
         orchestrator.StartMovement(Orch::TOGGLE);
     } else if (command == BleLogger::Command::RESET) {
         orchestrator.Reset();
+    }   else if (command == BleLogger::Command::WIFI) {
+        if (wifi.Init(WifiUpdateStarting))
+            wifi.StartWifi();
     }
 }
 
@@ -65,8 +68,9 @@ void setup() {
 
 unsigned long loopCountSinceSleep = 0; // Stores the last time the message was printed
 const long awakeTime = 100;  // loops
-
-
+TickType_t startWifiAtTime = 0;  // loops
+TickType_t startBlueToothAtTime = 0;  // loops
+static unsigned long lastLogTime = 0;
 
 void loop() {
     button.Loop();
@@ -80,21 +84,41 @@ void loop() {
     //     //setupWifi();
     // }
 
+
+
     if (button.ButtonPressed()) {
+    {
         orchestrator.StartMovement(Orch::TOGGLE);
+        startWifiAtTime = xTaskGetTickCount() + pdMS_TO_TICKS(60000); // 60 seconds from now
+        //setupWifi();
+    }
     } else if (button.ButtonLongPressed()) {
         orchestrator.Reset();
+    }
+
+    if (xTaskGetTickCount() > startWifiAtTime && startWifiAtTime != 0) {
+        setupWifi();
+        startWifiAtTime = 0;
     }
 
     if (orchestrator.isIdle() && !bleLogger.isConnected() && loopCountSinceSleep > awakeTime) {
         //Serial.println("Entering light sleep");
         esp_sleep_enable_touchpad_wakeup();
-        esp_sleep_enable_timer_wakeup(1000000); // 1 second
-        //esp_light_sleep_start();
+        esp_sleep_enable_timer_wakeup(5000000); // 5 second
+        esp_light_sleep_start();
         //Serial.println("Woke up from light sleep");
         loopCountSinceSleep = 0;
     }
 
+    
+    unsigned long currentMillis = millis();
+
+    if (currentMillis - lastLogTime >= 1000) {
+        lastLogTime = currentMillis;
+    bleLogger.LogEvent("Looping" + std::string(String(currentMillis).c_str()) + " ms");
+    }
+
+    
     vTaskDelay(10);
 }
 

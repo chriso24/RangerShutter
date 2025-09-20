@@ -106,6 +106,7 @@ bool Orch::IsCalibrated()
 
 void Orch::PerformCalibration()
 {
+    directionClose = false;
     recordedTimeForCycle = motorController->GetCalibratedRunTime(false);
 
     if (recordedTimeForCycle == 0)

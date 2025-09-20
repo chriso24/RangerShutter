@@ -37,6 +37,8 @@ public:
     MyServerCallbacks(BleLogger* logger) : pBleLogger(logger) {}
     void onConnect(BLEServer* pServer) {
         Serial.println("Device connected.");
+      
+      pBleLogger->startSendingMessagesAt = xTaskGetTickCount() + 2000 / portTICK_PERIOD_MS; // start sending messages after 2 second
       pBleLogger->deviceConnected = true;
       pBleLogger->lastMessageTime = xTaskGetTickCount();
     };
@@ -128,13 +130,24 @@ std::string BleLogger::getNextLog() {
     return message;
 }
 
+bool BleLogger::isLogMessageReady() {
+    return !logQueue.empty();
+}
+
 void BleLogger::loop() {
-  if (deviceConnected) {
-    std::string logMessage = getNextLog();
+  if (deviceConnected && isLogMessageReady() && xTaskGetTickCount() >= startSendingMessagesAt) {
+
+    std::string logMessage = logQueue.front();
+
+    Serial.println("Start sending logs");
+
     if (!logMessage.empty()) {
         pCharacteristic_tx->setValue(logMessage);
         pCharacteristic_tx->notify();
+        pCharacteristic_tx->indicate();
         lastMessageTime = xTaskGetTickCount();
+        logQueue.pop();
+        Serial.println("Log sent");
     }
 
     if ((xTaskGetTickCount() - lastMessageTime) > silenceTimeout) {
@@ -157,6 +170,10 @@ void BleLogger::recieveMessage(const std::string& message) {
     else if (message == "Reset") {
         LogEvent("Reset command via BLE");
         this->callBackOnUpdate(Command::RESET);
+    }
+    else if (message == "WIFI") {
+        LogEvent("Enable Wifi");
+        this->callBackOnUpdate(Command::WIFI);
     }
     else
         LogEvent("Received unknown command via BLE");

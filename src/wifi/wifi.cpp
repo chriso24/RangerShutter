@@ -13,7 +13,7 @@ bool Wifi::Init(wifiShutdownCallback callBackShutdown)
     if (WiFi.waitForConnectResult() == WL_CONNECTED)
     {
         // Already connected. Quit.
-        return false;
+        return true;
     }
 
     this->callBackOnUpdate = callBackShutdown;
@@ -28,7 +28,7 @@ bool Wifi::Init(wifiShutdownCallback callBackShutdown)
 
     if (WiFi.waitForConnectResult() != WL_CONNECTED)
     {
-        Serial.println("Wifi connection not available.");
+        logger->LogEvent("Wifi connection not available.");
         return false;
     }
 
@@ -37,10 +37,10 @@ bool Wifi::Init(wifiShutdownCallback callBackShutdown)
     ArduinoOTA
         .onStart([this]()
                  {
-Serial.println("Wifi update starting, shuting down system."); 
+logger->LogEvent("Wifi update starting, shuting down system."); 
             if (callBackOnUpdate != NULL)
                callBackOnUpdate(); 
-               Serial.println("Done."); 
+               logger->LogEvent("Done."); 
 
       String type;
       if (ArduinoOTA.getCommand() == U_FLASH)
@@ -49,7 +49,8 @@ Serial.println("Wifi update starting, shuting down system.");
         type = "filesystem";
 
       // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-      Serial.println("Start updating " + type); })
+      logger->LogEvent("Start updating " + std::string(type.c_str())); 
+    })
         .onEnd([]()
                { Serial.println("\nEnd"); })
         .onProgress([](unsigned int progress, unsigned int total)
@@ -104,7 +105,7 @@ void Wifi::Loop(void *pvParameters)
 
 void Wifi::HandleWifi()
 {
-    Serial.println("\nWifi listening");
+    logger->LogEvent("\nWifi listening");
     TickType_t currentTick = xTaskGetTickCount();
     for(;;)
     {
@@ -115,5 +116,9 @@ void Wifi::HandleWifi()
         if (currentTick > shutdownWifiAt)
             vTaskDelete(Task1);
     }
-    Serial.println("\nWifi shutdown");
+
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+
+    logger->LogEvent("\nWifi shutdown");
 }
