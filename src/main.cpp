@@ -88,8 +88,8 @@ void loop() {
 
     if (orchestrator.isIdle() && !bleLogger.isConnected() && loopCountSinceSleep > awakeTime) {
         //Serial.println("Entering light sleep");
-        esp_sleep_enable_touchpad_wakeup();
-        esp_sleep_enable_timer_wakeup(1000000); // 1 second
+        //esp_sleep_enable_touchpad_wakeup();
+        //esp_sleep_enable_timer_wakeup(1000000); // 1 second
         //esp_light_sleep_start();
         //Serial.println("Woke up from light sleep");
         loopCountSinceSleep = 0;

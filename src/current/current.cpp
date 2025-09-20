@@ -102,7 +102,11 @@ void Current::EndMonitor()
 
 void Current::EndThread()
 {
+     eTaskState taskState = eTaskGetState(Task1);
+        if (taskState != eDeleted)
+        {
     vTaskDelete(Task1);
+        }
     logger->LogEvent("End current monitor");
 }
 
