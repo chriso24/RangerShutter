@@ -10,6 +10,11 @@ void Orch::Init(Motor *moto, Current *current)
     recordedTimeForCycle = preferences.getInt("recordedTimeForCycle", 0);
     directionClose = preferences.getBool("directionClose", false);
 
+ 
+    logger->LogEvent("Load time for cycle: " + std::string(String(recordedTimeForCycle).c_str()));
+    logger->LogEvent("Load direction close: " + std::string(String(directionClose ? "true" : "false").c_str()));
+
+
     motorController = moto;
     currentMonitor = current;
 }
@@ -128,12 +133,16 @@ void Orch::ActionMovement()
     }
     
     finishedSuccessfully = false;
-    logger->LogEvent("\nOrch start");
+    
 
     if (!directionClose)
     {
-        logger->LogEvent("Close");
+        logger->LogEvent("Start:Close");
         timeForCycle = timeForCycle * 1.05;
+    }
+    else
+    {
+        logger->LogEvent("Start:Open");
     }
 
     logger->LogEvent("Cycle time = " + std::string(String(timeForCycle).c_str()));
@@ -191,5 +200,5 @@ void Orch::ActionMovement()
     preferences.putBool("directionClose", directionClose);
 
     currentMonitor->EndMonitor();
-    logger->LogEvent("\nOrch shutdown");
+    logger->LogEvent("Finish:" + std::string(directionClose ? "Close" : "Open"));
 }

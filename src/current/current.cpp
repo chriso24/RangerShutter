@@ -222,6 +222,9 @@ void Current::CheckCurrent()
     ina226->readAndClearFlags();
     float bus = ina226->getBusPower();
 
+    if (ina226->limitAlert)
+        logger->LogEvent("Abort movement");
+
     if (bus < minCurrentRead || bus == currentMeasurements[SHORT_WINDOW_SIZE - 1])
         return;
 
@@ -269,9 +272,12 @@ void Current::CheckCurrent()
 
     if (currentShift > ALERT_PERCENTAGE)
     {
+        logger->LogEvent("Abort movement");
         logger->LogEvent("ALERT: Current shift is too high!");
         callBackOnOverCurrent(); // Trigger the callback for over current
     }
+
+    
    
 }
 
