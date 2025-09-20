@@ -144,11 +144,10 @@ void BleLogger::loop() {
     if (!logMessage.empty()) {
         pCharacteristic_tx->setValue(logMessage);
         pCharacteristic_tx->notify();
-        pCharacteristic_tx->indicate();
         lastMessageTime = xTaskGetTickCount();
-        logQueue.pop();
         Serial.println("Log sent");
     }
+    logQueue.pop();
 
     if ((xTaskGetTickCount() - lastMessageTime) > silenceTimeout) {
         LogEvent("Client disconnected due to inactivity");

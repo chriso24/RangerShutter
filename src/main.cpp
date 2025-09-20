@@ -17,6 +17,7 @@ Orch orchestrator(&bleLogger);
 Wifi wifi(&bleLogger);
 
 
+
 void WifiUpdateStarting() {
     // TODO: Shutdown everything
     Serial.println("Wifi update starting, shutting down system."); 
@@ -92,31 +93,37 @@ void loop() {
         startWifiAtTime = xTaskGetTickCount() + pdMS_TO_TICKS(60000); // 60 seconds from now
         //setupWifi();
     }
-    } else if (button.ButtonLongPressed()) {
-        orchestrator.Reset();
-    }
+    } 
+    // else if (button.ButtonLongPressed()) {
+    //     orchestrator.Reset();
+    // }
 
     if (xTaskGetTickCount() > startWifiAtTime && startWifiAtTime != 0) {
         setupWifi();
         startWifiAtTime = 0;
     }
 
-    if (orchestrator.isIdle() && !bleLogger.isConnected() && loopCountSinceSleep > awakeTime) {
-        //Serial.println("Entering light sleep");
-        esp_sleep_enable_touchpad_wakeup();
-        esp_sleep_enable_timer_wakeup(5000000); // 5 second
-        esp_light_sleep_start();
-        //Serial.println("Woke up from light sleep");
-        loopCountSinceSleep = 0;
-    }
+    // if (orchestrator.isIdle() && !bleLogger.isConnected() && loopCountSinceSleep > awakeTime) {
+    //     Serial.println("Entering light sleep");
+    //     esp_sleep_enable_timer_wakeup(5000000); // 5 second
+    //     esp_light_sleep_start();
+
+    //     if (esp_sleep_get_touchpad_wakeup_status() != TOUCH_PAD_MAX)
+    //     {
+    //         loopCountSinceSleep -= 10000;
+    //     }
+
+    //     Serial.println("Woke up from light sleep");
+    //     loopCountSinceSleep = 0;
+    // }
 
     
-    unsigned long currentMillis = millis();
+    // unsigned long currentMillis = millis();
 
-    if (currentMillis - lastLogTime >= 1000) {
-        lastLogTime = currentMillis;
-    bleLogger.LogEvent("Looping" + std::string(String(currentMillis).c_str()) + " ms");
-    }
+    // if (currentMillis - lastLogTime >= 1000) {
+    //     lastLogTime = currentMillis;
+    // bleLogger.LogEvent("Looping" + std::string(String(currentMillis).c_str()) + " ms");
+    // }
 
     
     vTaskDelay(10);

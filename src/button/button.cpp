@@ -1,5 +1,6 @@
 #include "button.h"
 #include "Arduino.h"
+#include <driver/touch_pad.h>
 
 void Button::Init()
 {
@@ -7,6 +8,12 @@ void Button::Init()
     {
         previousTouchValues[i] = 100;
     }
+
+    esp_sleep_enable_touchpad_wakeup();
+    //esp_sleep_enable_ext0_wakeup(GPIO_NUM_4, 5); // 1 = High, 0 = Low
+}
+
+void TouchCallback(){
 }
 
 void Button::Loop()

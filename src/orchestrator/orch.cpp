@@ -7,7 +7,7 @@ Orch::Orch(ILogger* logger) : logger(logger), directionClose(false), motorContro
 void Orch::Init(Motor *moto, Current *current)
 {
     preferences.begin("Triton", false);
-    recordedTimeForCycle = preferences.getInt("recordedTimeForCycle", 0);
+    recordedTimeForCycle = preferences.getInt("rtfc", 0);
     directionClose = preferences.getBool("directionClose", false);
 
  
@@ -116,7 +116,7 @@ void Orch::PerformCalibration()
     {
         finishedSuccessfully = true;
 
-        preferences.putInt("recordedTimeForCycle", recordedTimeForCycle);
+        preferences.putInt("rtfc", recordedTimeForCycle);
     }
 }
 

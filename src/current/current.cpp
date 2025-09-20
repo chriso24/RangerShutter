@@ -29,6 +29,7 @@ void Current::StartupIna226()
     ina226->setMeasureMode(CONTINUOUS);
     ina226->setAlertType(POWER_OVER, maxCurrentLow);
     ina226->setAlertPinActiveHigh();
+    ina226->setConversionTime(CONV_TIME_140);
 }
 
 void Current::StartMonitor(ShutdownInterup callBack, bool slowRun)
@@ -90,7 +91,7 @@ void Current::RunMonitor()
     while(shutdownTime > xTaskGetTickCount())
     {
         CheckCurrent();
-        vTaskDelay(10);
+        vTaskDelay(140); // This matches the CONV_TIME_140
     }
 }
 
@@ -102,7 +103,11 @@ void Current::EndMonitor()
 
 void Current::EndThread()
 {
-    vTaskDelete(Task1);
+    eTaskState taskState = eTaskGetState(Task1);
+    if (taskState != eDeleted)
+    {
+        vTaskDelete(Task1);
+    }
     logger->LogEvent("End current monitor");
 }
 
