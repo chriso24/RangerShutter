@@ -8,6 +8,7 @@
 #include "wifi/wifi.h"
 #include "orchestrator/orch.h"
 #include "ble/ble.h"
+#include "sleep/sleep.h"
 
 BleLogger bleLogger;
 Current currentMonitor(&bleLogger);
@@ -103,19 +104,21 @@ void loop() {
         startWifiAtTime = 0;
     }
 
-    // if (orchestrator.isIdle() && !bleLogger.isConnected() && loopCountSinceSleep > awakeTime) {
-    //     Serial.println("Entering light sleep");
-    //     esp_sleep_enable_timer_wakeup(5000000); // 5 second
-    //     esp_light_sleep_start();
+    if (orchestrator.isIdle() && !bleLogger.isConnected() && loopCountSinceSleep > awakeTime) {
+        //Serial.println("Entering light sleep");
+        
+        //GoToSleep(1, &bleLogger);
+        // esp_sleep_enable_timer_wakeup(5000000); // 5 second
+        // esp_light_sleep_start();
 
-    //     if (esp_sleep_get_touchpad_wakeup_status() != TOUCH_PAD_MAX)
-    //     {
-    //         loopCountSinceSleep -= 10000;
-    //     }
+        // if (esp_sleep_get_touchpad_wakeup_status() != TOUCH_PAD_MAX)
+        // {
+        //     loopCountSinceSleep -= 10000;
+        // }
 
-    //     Serial.println("Woke up from light sleep");
-    //     loopCountSinceSleep = 0;
-    // }
+        // Serial.println("Woke up from light sleep");
+        loopCountSinceSleep = 0;
+    }
 
     
     // unsigned long currentMillis = millis();
