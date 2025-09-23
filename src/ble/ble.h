@@ -25,6 +25,7 @@ public:
     typedef void(*bleActivationCallback)(Command);
 
     BleLogger();
+    ~BleLogger();
     void init(bleActivationCallback callBackShutdown);
     void restartBleAdvertisment();
     void loop();
@@ -40,6 +41,9 @@ private:
     class MyCallbacks;
 
     BLEServer *pServer;
+    MyServerCallbacks* pServerCallbacks;
+    MyCallbacks* pRxCallbacks;
+    MyCallbacks* pTxCallbacks;
     BLECharacteristic *pCharacteristic_tx;
     BLECharacteristic *pCharacteristic_rx;
     bool deviceConnected = false;

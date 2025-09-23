@@ -1,4 +1,3 @@
-
 #include "wifi.h"
 #include "Arduino.h"
 #include <WiFi.h>
@@ -6,7 +5,7 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 
-Wifi::Wifi(ILogger* logger) : logger(logger) {}
+Wifi::Wifi(ILogger* logger) : logger(logger), Task1(NULL) {}
 
 bool Wifi::Init(wifiShutdownCallback callBackShutdown)
 {
@@ -72,6 +71,15 @@ logger->LogEvent("Wifi update starting, shuting down system.");
     return true;
 }
 
+Wifi::~Wifi()
+{
+    if (Task1 != NULL)
+    {
+        vTaskDelete(Task1);
+        Task1 = NULL;
+    }
+}
+
 void Wifi::StartWifi()
 {
     TickType_t currentTick = xTaskGetTickCount();
@@ -89,7 +97,7 @@ void Wifi::StartWifi()
     xTaskCreatePinnedToCore(
             Loop, /* Function to implement the task */
             "Wifi",   /* Name of the task */
-            10000,              /* Stack size in words */
+            5000,              /* Stack size in words */
             this,               /* Task input parameter */
             2,                  /* Priority of the task */
             &Task1,             /* Task handle. */
@@ -106,19 +114,20 @@ void Wifi::Loop(void *pvParameters)
 void Wifi::HandleWifi()
 {
     logger->LogEvent("\nWifi listening");
-    TickType_t currentTick = xTaskGetTickCount();
-    for(;;)
+    for (;;)
     {
         ArduinoOTA.handle();
-        vTaskDelay(100);
-        currentTick = xTaskGetTickCount();
+        vTaskDelay(pdMS_TO_TICKS(100));
 
-        if (currentTick > shutdownWifiAt)
-            vTaskDelete(Task1);
+        if (xTaskGetTickCount() > shutdownWifiAt)
+        {
+            UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+            logger->LogEvent("Wifi stack high water mark: " + std::to_string(uxHighWaterMark) + " words");
+            logger->LogEvent("\nWifi shutdown");
+            WiFi.disconnect(true);
+            WiFi.mode(WIFI_OFF);
+            Task1 = NULL; // Set to null before deleting
+            vTaskDelete(NULL); // Deletes the current task
+        }
     }
-
-    WiFi.disconnect(true);
-    WiFi.mode(WIFI_OFF);
-
-    logger->LogEvent("\nWifi shutdown");
 }

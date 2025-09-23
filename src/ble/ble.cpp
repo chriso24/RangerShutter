@@ -68,7 +68,17 @@ public:
 }
 };
 
-BleLogger::BleLogger() : pCharacteristic_tx(nullptr), pCharacteristic_rx(nullptr), deviceConnected(false), txValue(0) {}
+BleLogger::BleLogger() : pServer(nullptr), pServerCallbacks(nullptr), pRxCallbacks(nullptr), pTxCallbacks(nullptr), pCharacteristic_tx(nullptr), pCharacteristic_rx(nullptr), deviceConnected(false), txValue(0) {}
+
+// In BleLogger class, add destructor
+BleLogger::~BleLogger() {
+    if (pServer) {
+        BLEDevice::deinit(true); // This will clean up all BLE resources
+    }
+    delete pServerCallbacks;
+    delete pRxCallbacks;
+    delete pTxCallbacks;
+}
 
 void BleLogger::init(bleActivationCallback callBack) {
 
@@ -79,7 +89,8 @@ void BleLogger::init(bleActivationCallback callBack) {
 
   // Create the BLE Server
   pServer = BLEDevice::createServer();
-  pServer->setCallbacks(new MyServerCallbacks(this));
+  pServerCallbacks = new MyServerCallbacks(this);
+  pServer->setCallbacks(pServerCallbacks);
 
   // Create the BLE Service
   BLEService *pService = pServer->createService(SERVICE_UUID);
@@ -91,17 +102,17 @@ void BleLogger::init(bleActivationCallback callBack) {
                     );
                       
   pCharacteristic_tx->addDescriptor(new BLE2902());
-  pCharacteristic_tx->setCallbacks(new MyCallbacks(this));
+  pTxCallbacks = new MyCallbacks(this);
+  pCharacteristic_tx->setCallbacks(pTxCallbacks);
 
   // Create a BLE Characteristic for RX
   pCharacteristic_rx = pService->createCharacteristic(
                                          CHARACTERISTIC_UUID_RX,
-                                         BLECharacteristic::PROPERTY_WRITE
+                                          BLECharacteristic::PROPERTY_WRITE
                                        );
 
-  pCharacteristic_rx->setCallbacks(new MyCallbacks(this));
-
-  // Start the service
+  pRxCallbacks = new MyCallbacks(this);
+  pCharacteristic_rx->setCallbacks(pRxCallbacks);  // Start the service
   pService->start();
 
   // Start advertising

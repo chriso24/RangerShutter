@@ -10,60 +10,64 @@
 #include "ble/ble.h"
 #include "sleep/sleep.h"
 
-BleLogger bleLogger;
-Current currentMonitor(&bleLogger);
-Motor motorController(&bleLogger);
-Button button;
-Orch orchestrator(&bleLogger);
-Wifi wifi(&bleLogger);
-
+BleLogger *bleLogger = new BleLogger();
+//Current *currentMonitor = new Current   (bleLogger);
+//Motor *motorController = new Motor(bleLogger);
+Button *button = new Button();
+Orch *orchestrator = new Orch(bleLogger);
+//Wifi wifi(&bleLogger);
+Wifi *wifi;
 
 
 void WifiUpdateStarting() {
     // TODO: Shutdown everything
     Serial.println("Wifi update starting, shutting down system."); 
     Serial.println("Stop motor.");
-    motorController.Stop(true);
     Serial.println("Shutdown current monitor.");
-    currentMonitor.ShutdownIna226();
-    orchestrator.EndThread();   
+    orchestrator->EndThread();   
     
     Serial.println("Done.");
 }
 
 
 void triggerFromBle(BleLogger::Command command) {
-    bleLogger.LogEvent("Toggle shutter from BLE.");
+    bleLogger->LogEvent("Toggle shutter from BLE.");
 
     if (command == BleLogger::Command::OPEN) {
-        orchestrator.StartMovement(Orch::TOGGLE);
+        orchestrator->StartMovement(Orch::TOGGLE);
     } else if (command == BleLogger::Command::CLOSE) {
-        orchestrator.StartMovement(Orch::TOGGLE);
+        orchestrator->StartMovement(Orch::TOGGLE);
     } else if (command == BleLogger::Command::RESET) {
-        orchestrator.Reset();
+        orchestrator->Reset();
     }   else if (command == BleLogger::Command::WIFI) {
-        if (wifi.Init(WifiUpdateStarting))
-            wifi.StartWifi();
+        setupWifi();
     }
 }
 
 void setupWifi()
 {
-    if (wifi.Init(WifiUpdateStarting))
-        wifi.StartWifi();
+    if (wifi != NULL)
+    {
+        delete wifi;
+    }
+
+    wifi = new Wifi(bleLogger);
+
+    if (wifi->Init(WifiUpdateStarting))
+        wifi->StartWifi();
 }
 
 void setup() {
     enableLoopWDT();
     Serial.begin(115200);
     
-    bleLogger.init(triggerFromBle);
+    bleLogger->init(triggerFromBle);
     setupWifi();
 
-    button.Init();
-    currentMonitor.Init();
-    motorController.Init(&currentMonitor);
-    orchestrator.Init(&motorController, &currentMonitor);
+    // button.Init();
+    // currentMonitor.Init();
+    // motorController.Init(&currentMonitor);
+    //orchestrator->Init(&motorController, &currentMonitor);
 
     Serial.println("\nTriton management starting");
 }
@@ -75,9 +79,9 @@ TickType_t startBlueToothAtTime = 0;  // loops
 static unsigned long lastLogTime = 0;
 
 void loop() {
-    button.Loop();
-    bleLogger.loop();
-    motorController.Loop();
+    button->Loop();
+    bleLogger->loop();
+    //motorController.Loop();
     loopCountSinceSleep++;
     //unsigned long currentMillis = millis(); // Get the current time
     // if (currentMillis - previousMillis >= interval) {
@@ -88,15 +92,15 @@ void loop() {
 
 
 
-    if (button.ButtonPressed()) {
+    if (button->ButtonPressed()) {
     {
-        orchestrator.StartMovement(Orch::TOGGLE);
+        orchestrator->StartMovement(Orch::TOGGLE);
         startWifiAtTime = xTaskGetTickCount() + pdMS_TO_TICKS(60000); // 60 seconds from now
         //setupWifi();
     }
     } 
     // else if (button.ButtonLongPressed()) {
-    //     orchestrator.Reset();
+    //     orchestrator->Reset();
     // }
 
     if (xTaskGetTickCount() > startWifiAtTime && startWifiAtTime != 0) {
@@ -104,7 +108,7 @@ void loop() {
         startWifiAtTime = 0;
     }
 
-    if (orchestrator.isIdle() && !bleLogger.isConnected() && loopCountSinceSleep > awakeTime) {
+    if (orchestrator->isIdle() && !bleLogger->isConnected() && loopCountSinceSleep > awakeTime) {
         //Serial.println("Entering light sleep");
         
         //GoToSleep(1, &bleLogger);
@@ -125,7 +129,7 @@ void loop() {
 
     // if (currentMillis - lastLogTime >= 1000) {
     //     lastLogTime = currentMillis;
-    // bleLogger.LogEvent("Looping" + std::string(String(currentMillis).c_str()) + " ms");
+    // bleLogger->LogEvent("Looping" + std::string(String(currentMillis).c_str()) + " ms");
     // }
 
     

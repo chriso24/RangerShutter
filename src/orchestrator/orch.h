@@ -16,19 +16,28 @@ public:
     };
 
     Orch(ILogger* logger);
-    void Init(Motor* motorController, Current* currentMonitor);
+    ~Orch();
+    //void Init(Motor* motorController, Current* currentMonitor);
     void StartMovement(Command direction);
     bool AbortMovement();
     void ActionMovement();
     void Stop(bool emergency);
     void PerformCalibration();
+    
     bool IsCalibrated();
     void EndThread();
     void Reset();
+    
     bool isIdle();
     static void Loop(void* p_pParam);
+    static void CurrentInterupt();
+    static volatile bool abortRequested;
 
 private:
+
+void SetupSystem();
+void CheckForAbort();
+
     ILogger* logger;
     Preferences preferences;
     bool directionClose;
@@ -41,8 +50,10 @@ private:
     const int recoverySpeed = 120;
     const int fastSpeed = 255;
     const int maxRunTimeAtEnd = 10000;
-    TaskHandle_t Task1;
+    TaskHandle_t Task1 = NULL;
     static const int OrchWakeTime = 1000;
+    
+    bool isRunning = false;
 };
 
 #endif // ORCH_H

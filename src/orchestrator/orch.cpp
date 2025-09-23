@@ -1,102 +1,143 @@
 #include "Orch.h"
 #include <Preferences.h>
 
-Orch::Orch(ILogger* logger) : logger(logger), directionClose(false), motorController(nullptr), currentMonitor(nullptr), recordedTimeForCycle(0), finishedSuccessfully(false) {}
+Orch::Orch(ILogger *logger) : logger(logger), directionClose(false), motorController(nullptr), currentMonitor(nullptr), recordedTimeForCycle(0), finishedSuccessfully(false), Task1(NULL) {
 
-
-void Orch::Init(Motor *moto, Current *current)
-{
     preferences.begin("Triton", false);
     recordedTimeForCycle = preferences.getInt("rtfc", 0);
     directionClose = preferences.getBool("directionClose", true);
 
- 
-    logger->LogEvent("Load time for cycle: " + std::string(String(recordedTimeForCycle).c_str()));
+     logger->LogEvent("Load time for cycle: " + std::string(String(recordedTimeForCycle).c_str()));
     logger->LogEvent("Load direction close: " + std::string(String(directionClose ? "true" : "false").c_str()));
 
-
-    motorController = moto;
-    currentMonitor = current;
 }
 
+Orch::~Orch()
+{
+    AbortMovement();
+}
+
+
+// void Orch::Init(Motor *moto, Current *current)
+// {
+//     preferences.begin("Triton", false);
+//     recordedTimeForCycle = preferences.getInt("rtfc", 0);
+//     directionClose = preferences.getBool("directionClose", true);
+
+//     logger->LogEvent("Load time for cycle: " + std::string(String(recordedTimeForCycle).c_str()));
+//     logger->LogEvent("Load direction close: " + std::string(String(directionClose ? "true" : "false").c_str()));
+
+//     motorController = moto;
+//     currentMonitor = current;
+// }
 
 void Orch::Reset()
 {
     AbortMovement();
     recordedTimeForCycle = 0;
     preferences.clear();
-    //StartMovement(TOGGLE);
+    // StartMovement(TOGGLE);
 }
 
 void Orch::StartMovement(Command direction)
 {
     bool wasRunning = AbortMovement();
 
-    if (!wasRunning)
+    if (direction == TOGGLE)
     {
-        if (direction == TOGGLE)
-        {
-            directionClose = !directionClose;
-        }
-        else
-        {
-            directionClose = direction == CLOSE;
-        }
-
-        xTaskCreatePinnedToCore(
-            Loop,   /* Function to implement the task */
-            "Orch", /* Name of the task */
-            4096,   /* Stack size in words */
-            this,   /* Task input parameter */
-            tskIDLE_PRIORITY + 2,      /* Priority of the task */
-            &Task1,  /* Task handle. */
-             0       // 1
-        );          /* Core where the task should run */
+        directionClose = !directionClose;
     }
+    else
+    {
+        directionClose = direction == CLOSE;
+    }
+
+    xTaskCreatePinnedToCore(
+        Loop,                 /* Function to implement the task */
+        "Orch",               /* Name of the task */
+        4096,                 /* Stack size in words */
+        this,                 /* Task input parameter */
+        tskIDLE_PRIORITY + 2, /* Priority of the task */
+        &Task1,               /* Task handle. */
+        0                     // 1
+    );                        /* Core where the task should run */
 }
 
 bool Orch::AbortMovement()
-{    try
+{
+    bool threadRunning = false;
+    abortRequested = true;
+    try
     {
-        /* code */
-    
-    if (Task1 != NULL)
-    {
-        eTaskState taskState = eTaskGetState(Task1);
-        if (taskState < eDeleted)
+        if (Task1 != NULL)
         {
-            vTaskDelete(Task1);
-            motorController->Stop(false);
-            return true;
+            eTaskState taskState = eTaskGetState(Task1);
+            if (taskState < eDeleted)
+            {
+                threadRunning = true;
+                logger->LogEvent("Abort current movement");
+
+                TickType_t startTick = xTaskGetTickCount();
+                while(isRunning && eTaskGetState(Task1) != eDeleted && (xTaskGetTickCount() - startTick) < pdMS_TO_TICKS(500)) {
+                    vTaskDelay(100);
+                }
+            }
         }
     }
-    }
-    catch(const std::exception& e)
+    catch (const std::exception &e)
     {
-        logger->LogEvent("AbortMovement failed: " + std::string(e.what())); 
+        logger->LogEvent("AbortMovement failed: " + std::string(e.what()));
     }
-    
-    
 
-    motorController->Stop(false);
-    return false;
+    if (motorController != nullptr)
+        motorController->Stop(false);
+
+    if (currentMonitor != nullptr)    
+        currentMonitor->ShutdownIna226();
+
+    return threadRunning;
 }
 
 void Orch::Loop(void *pvParameters)
 {
     Orch *p_pThis = static_cast<Orch *>(pvParameters);
 
-    if (p_pThis->IsCalibrated())
-        p_pThis->ActionMovement();
-    else
-        p_pThis->PerformCalibration();
+    p_pThis->isRunning = true;
+    try
+    {
+        p_pThis->SetupSystem();
+
+        if (p_pThis->IsCalibrated())
+            p_pThis->ActionMovement();
+        else
+            p_pThis->PerformCalibration();
+    }
+    catch(const std::exception& e)
+    {
+        p_pThis->logger->LogEvent("Thread movement aborted: " + std::string(e.what()));
+    }
+    
+
+    UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+    p_pThis->logger->LogEvent("Orch stack high water mark: " + std::to_string(uxHighWaterMark) + " words");
 
     p_pThis->EndThread();
 }
 
 void Orch::EndThread()
 {
-    vTaskDelete(Task1);
+    isRunning = false;
+    Task1 = NULL;
+    vTaskDelete(NULL);
+}
+
+
+void Orch::SetupSystem()
+{
+    motorController = new Motor(logger);
+    motorController->Init(currentMonitor);
+    currentMonitor = new Current(logger);
+    currentMonitor->Init(); 
 }
 
 bool Orch::isIdle()
@@ -132,21 +173,39 @@ void Orch::PerformCalibration()
     }
 }
 
+void Orch::CheckForAbort()
+{
+    if (abortRequested)
+    {
+        abortRequested = false;
+        throw std::runtime_error("Movement aborted");
+    }
+}
+
+
+void Orch::CurrentInterupt()
+{
+   Orch::abortRequested = true;
+   Motor::CurrentInterupt();
+}
+
 void Orch::ActionMovement()
 {
     currentMonitor->Reset();
-    currentMonitor->StartMonitor(Motor::CurrentInterupt, false);
+
+    // pass the local function as the callback
+    currentMonitor->StartMonitor(CurrentInterupt, false);
+    
     int speed = fastSpeed;
     int timeForCycle = recordedTimeForCycle;
     bool isRecoveryRun = !finishedSuccessfully;
     if (!finishedSuccessfully)
     {
         speed = recoverySpeed;
-        timeForCycle = timeForCycle*1.5;
+        timeForCycle = timeForCycle * 1.5;
     }
-    
+
     finishedSuccessfully = false;
-    
 
     if (!directionClose)
     {
@@ -162,6 +221,7 @@ void Orch::ActionMovement()
 
     TickType_t startTick = xTaskGetTickCount();
 
+    CheckForAbort();
     currentMonitor->Reset();
     currentMonitor->SetCurrentLimit(Current::CurrentLevel::C_HIGH, !directionClose);
     vTaskDelay(200);
@@ -173,29 +233,35 @@ void Orch::ActionMovement()
 
     logger->LogEvent("\nCurrent limit normal");
 
+    CheckForAbort();
     currentMonitor->SetCurrentLimit(isRecoveryRun ? Current::CurrentLevel::C_LOW : Current::CurrentLevel::C_HIGH, !directionClose);
 
-    while ((xTaskGetTickCount() - startTick) < timeForCycle)
+    while ((xTaskGetTickCount() - startTick) < timeForCycle && !abortRequested)
     {
-        //currentMonitor->PrintCurrent();
+        // currentMonitor->PrintCurrent();
         vTaskDelay(100);
     }
 
     logger->LogEvent("Slowing things down for end of cycle");
 
+    CheckForAbort();
+
     if (!isRecoveryRun)
-    if (motorController->IsRunning())
-    {
-        logger->LogEvent("Success run");
-        finishedSuccessfully = true;
-        motorController->SetSpeedAndDirection(directionClose, slowSpeed, 5, true);
-        vTaskDelay(1500);
-        currentMonitor->SetCurrentLimit(Current::CurrentLevel::C_VLOW,!directionClose);
-    }
-    else
-    {
-        logger->LogEvent("Fail run");
-    }
+        if (motorController->IsRunning())
+        {
+            logger->LogEvent("Success run");
+            finishedSuccessfully = true;
+            CheckForAbort();
+            motorController->SetSpeedAndDirection(directionClose, slowSpeed, 5, true);
+            vTaskDelay(100);
+
+            CheckForAbort();
+            currentMonitor->SetCurrentLimit(Current::CurrentLevel::C_VLOW, !directionClose);
+        }
+        else
+        {
+            logger->LogEvent("Fail run");
+        }
 
     if (isRecoveryRun)
         finishedSuccessfully = true;
@@ -203,16 +269,19 @@ void Orch::ActionMovement()
     if (motorController->CurrentSpeed != 0)
     {
         startTick = xTaskGetTickCount();
-        while ((xTaskGetTickCount() - startTick) < maxRunTimeAtEnd)
+        while ((xTaskGetTickCount() - startTick) < maxRunTimeAtEnd && !abortRequested)
         {
             vTaskDelay(100);
         }
         motorController->Stop(false);
     }
+
+    CheckForAbort();
     motorController->Stop(false);
 
     preferences.putBool("directionClose", directionClose);
 
+    CheckForAbort();
     currentMonitor->ShutdownIna226();
     logger->LogEvent("Finish:" + std::string(directionClose ? "Close" : "Open"));
 }

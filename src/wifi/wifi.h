@@ -1,4 +1,3 @@
-
 #ifndef WIFI_H
 #define WIFI_H
 
@@ -9,6 +8,7 @@ class Wifi {
 public:
     typedef void(*wifiShutdownCallback)(void);
     Wifi(ILogger* logger);
+    ~Wifi();
     void StartWifi();
     bool Init(wifiShutdownCallback callBackShutdown);
     void HandleWifi();
@@ -20,7 +20,7 @@ private:
     const char* password = "29232681";
     volatile TickType_t shutdownWifiAt;
     wifiShutdownCallback callBackOnUpdate;
-    TaskHandle_t Task1;
+    TaskHandle_t Task1 = NULL;
     static const int WifiWakeTime = 240; // seconds
 };
 
