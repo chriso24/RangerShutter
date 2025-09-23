@@ -36,6 +36,7 @@ public:
 private:
     ILogger* logger;
     static const int SHORT_WINDOW_SIZE = 3;
+    static const int LONG_WINDOW_SIZE = 10;
     static const int LONG_WINDOW_COUNT = 10;
     static constexpr float ALERT_PERCENTAGE = 0.45;
 
@@ -59,7 +60,7 @@ private:
     bool CheckInit();
     void SetCurrentValue(CurrentLevel level, bool closing);
     float currentMeasurements[SHORT_WINDOW_SIZE];
-    float longCurrentMeasurements[SHORT_WINDOW_SIZE];
+    float longCurrentMeasurements[LONG_WINDOW_SIZE];
     float shortAverageCurrent;
     float longAverageCurrent;
     bool isSlowRun;
