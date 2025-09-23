@@ -27,6 +27,7 @@ void Motor::Init(Current *current)
     currentMonitor->AttachInteruptForOverCurrent(Motor::CurrentInterupt);
     //pinMode(2, INPUT_PULLUP);
     //attachInterrupt(digitalPinToInterrupt(2), Motor::CurrentInterupt, FALLING);
+    Stop(true);
 }
 
 void Motor::Loop()
@@ -118,7 +119,7 @@ int Motor::GetCalibratedRunTime(bool force)
     Stop(true);
 
     currentMonitor->Reset();
-    currentMonitor->EndMonitor();
+    currentMonitor->ShutdownIna226();
 
     return cycleTime;
 }
@@ -182,6 +183,7 @@ void Motor::Stop(bool emergency)
 {
     inMotion = 0;
     logger->LogEvent("Stop triggered at position " + std::string(String(currentPositionEstimate).c_str()));
+    logger->LogEvent("CurrentSpeed " + std::string(String(CurrentSpeed).c_str()));
     for (int i = CurrentSpeed; i >= 0; i--)
     {
         analogWrite(CurrentDirection ? motor_R : motor_L, i);

@@ -8,7 +8,7 @@ void Orch::Init(Motor *moto, Current *current)
 {
     preferences.begin("Triton", false);
     recordedTimeForCycle = preferences.getInt("rtfc", 0);
-    directionClose = preferences.getBool("directionClose", false);
+    directionClose = preferences.getBool("directionClose", true);
 
  
     logger->LogEvent("Load time for cycle: " + std::string(String(recordedTimeForCycle).c_str()));
@@ -25,7 +25,7 @@ void Orch::Reset()
     AbortMovement();
     recordedTimeForCycle = 0;
     preferences.clear();
-    StartMovement(TOGGLE);
+    //StartMovement(TOGGLE);
 }
 
 void Orch::StartMovement(Command direction)
@@ -43,30 +43,40 @@ void Orch::StartMovement(Command direction)
             directionClose = direction == CLOSE;
         }
 
-        xTaskCreate(
+        xTaskCreatePinnedToCore(
             Loop,   /* Function to implement the task */
             "Orch", /* Name of the task */
-            2048,   /* Stack size in words */
+            4096,   /* Stack size in words */
             this,   /* Task input parameter */
-            1,      /* Priority of the task */
-            &Task1  /* Task handle. */
-                    // 1
+            tskIDLE_PRIORITY + 2,      /* Priority of the task */
+            &Task1,  /* Task handle. */
+             0       // 1
         );          /* Core where the task should run */
     }
 }
 
 bool Orch::AbortMovement()
-{
+{    try
+    {
+        /* code */
+    
     if (Task1 != NULL)
     {
         eTaskState taskState = eTaskGetState(Task1);
-        if (taskState != eDeleted)
+        if (taskState < eDeleted)
         {
             vTaskDelete(Task1);
             motorController->Stop(false);
             return true;
         }
     }
+    }
+    catch(const std::exception& e)
+    {
+        logger->LogEvent("AbortMovement failed: " + std::string(e.what())); 
+    }
+    
+    
 
     motorController->Stop(false);
     return false;
@@ -111,6 +121,8 @@ void Orch::PerformCalibration()
 
     if (recordedTimeForCycle == 0)
         recordedTimeForCycle = motorController->GetCalibratedRunTime(true);
+
+    logger->LogEvent("Calibrated time for cycle: " + std::string(String(recordedTimeForCycle).c_str()));
 
     if (recordedTimeForCycle > 0)
     {
@@ -165,7 +177,7 @@ void Orch::ActionMovement()
 
     while ((xTaskGetTickCount() - startTick) < timeForCycle)
     {
-        currentMonitor->PrintCurrent();
+        //currentMonitor->PrintCurrent();
         vTaskDelay(100);
     }
 
@@ -197,9 +209,10 @@ void Orch::ActionMovement()
         }
         motorController->Stop(false);
     }
+    motorController->Stop(false);
 
     preferences.putBool("directionClose", directionClose);
 
-    currentMonitor->EndMonitor();
+    currentMonitor->ShutdownIna226();
     logger->LogEvent("Finish:" + std::string(directionClose ? "Close" : "Open"));
 }

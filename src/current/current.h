@@ -25,7 +25,7 @@ public:
     void Reset();
     void CheckCurrent();
     void StartMonitor(ShutdownInterup callBack, bool slowRun);
-    void EndMonitor();
+    void ShutdownIna226();
     void SetCurrentLimit(CurrentLevel level, bool closing);
     void SetCurrentLimitPercentage(float percentage);
     void PrintCurrent();
@@ -36,7 +36,7 @@ public:
 private:
     ILogger* logger;
     static const int SHORT_WINDOW_SIZE = 3;
-    static const int LONG_WINDOW_SIZE = 10;
+    static const int LONG_WINDOW_SIZE = 20;
     static const int LONG_WINDOW_COUNT = 10;
     static constexpr float ALERT_PERCENTAGE = 0.45;
 
@@ -52,9 +52,9 @@ private:
     static const int movingAverageSizeLarge = 10;
     static constexpr float maxCurrentHigh = 850.0;
     static constexpr float maxCurrentLow = 780.0;
-    static constexpr float maxCurrentUltraLow = 450.0;
-    static constexpr float maxCurrentUltraUltraLow = 380.0;
-    static constexpr float minCurrentRead = 290.0;
+    static constexpr float maxCurrentUltraLow = 420.0;
+    static constexpr float maxCurrentUltraUltraLow = 360.0;
+    static constexpr float minCurrentRead = 200.0;
     static INA226_WE* ina226;
     void StartupIna226();
     bool CheckInit();

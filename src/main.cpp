@@ -25,7 +25,7 @@ void WifiUpdateStarting() {
     Serial.println("Stop motor.");
     motorController.Stop(true);
     Serial.println("Shutdown current monitor.");
-    currentMonitor.EndMonitor();
+    currentMonitor.ShutdownIna226();
     orchestrator.EndThread();   
     
     Serial.println("Done.");

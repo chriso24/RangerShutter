@@ -39,7 +39,7 @@ void Current::StartupIna226()
     // sensible defaults
     ina226->setResistorRange(1, 10.0);
     ina226->setMeasureMode(CONTINUOUS);
-    ina226->setConversionTime(CONV_TIME_140);
+    //ina226->setConversionTime(CONV_TIME_140);
     // default alert threshold -- user can override via SetCurrentLimit/Percentage
     ina226->setAlertType(POWER_OVER, maxCurrentLow);
     ina226->setAlertPinActiveHigh();
@@ -52,15 +52,19 @@ void Current::StartMonitor(ShutdownInterup callBackFn, bool slowRun)
     callBack = callBackFn;
 
     // Ensure INA226 is powered and configured
-    if (ina226 == nullptr) {
-        ina226 = new INA226_WE(I2C_ADDRESS);
-        StartupIna226();
-    }
+    
+    // if (ina226 == nullptr) {
+    //     ina226 = new INA226_WE(I2C_ADDRESS);
+    //     StartupIna226();
+    // }
 
     // initialize moving averages with a reasonable default so spikes are measured against real data
-    float seed = maxCurrentHigh / 2.0f;
+    float seed = maxCurrentHigh;
+    float seedShort = maxCurrentHigh * 0.8f;
     for (int i = 0; i < SHORT_WINDOW_SIZE; ++i) {
-        currentMeasurements[i] = seed;
+        currentMeasurements[i] = seedShort;
+    }
+    for (int i = 0; i < LONG_WINDOW_SIZE; ++i) {
         longCurrentMeasurements[i] = seed;
     }
     shortAverageCurrent = seed;
@@ -82,13 +86,14 @@ void Current::StartMonitor(ShutdownInterup callBackFn, bool slowRun)
 
     // Create the monitoring task with a modest priority
     wasRunning = true;
-    xTaskCreate(
+    xTaskCreatePinnedToCore(
         Loop,
         "CurrentMonitor",
         4096,
         this,
         tskIDLE_PRIORITY + 2,
-        &Task1
+        &Task1,
+        1
     );
 }
 
@@ -105,13 +110,14 @@ void Current::Loop(void* p_pParam)
     self->RunMonitor();
 
     // Ensure the callback is not called unexpectedly here
-    self->EndThread();
     vTaskDelete(NULL);
+    //vTaskDelete(NULL);
 }
 
 void Current::RunMonitor()
 {
-    const TickType_t pollDelay = 1; // 1ms between measurements (ideal 140 us, but 1ms is the smallest) matches CONV_TIME_140)
+    Init();
+    const TickType_t pollDelay = 2; // 1ms between measurements (ideal 140 us, but 1ms is the smallest) matches CONV_TIME_140)
     currentMEasurementCounter = 0;
 
     while (shutdownTime == 0 || shutdownTime > xTaskGetTickCount())
@@ -120,17 +126,20 @@ void Current::RunMonitor()
         currentMEasurementCounter++;
         vTaskDelay(pollDelay);
     }
+
+    ShutdownIna226();
 }
 
-void Current::EndMonitor()
+void Current::ShutdownIna226()
 {
     // signal the task to stop
-    shutdownTime = 0;
+    shutdownTime = 1;
     if (ina226) ina226->powerDown();
 }
 
 void Current::EndThread()
 {
+    ShutdownIna226();
     if (Task1 != NULL) {
         vTaskDelete(Task1);
         Task1 = NULL;
@@ -248,20 +257,26 @@ void Current::CheckCurrent()
         change = (shortAverageCurrent - longAverageCurrent) / shortAverageCurrent;
 
     // Log occasionally for debugging
-    if ((currentMEasurementCounter % 50) == 0)
+    if ((currentMEasurementCounter % 2) == 0)
     {
-        logger->LogEvent("Current check: bus=" + std::string(String(busPower).c_str()) + ", shortAvg=" + std::string(String(shortAverageCurrent).c_str()));
+        logger->LogEvent("Current check: bus=" + std::string(String(busPower).c_str()) + ", shortAvg=" + std::string(String(shortAverageCurrent).c_str()) + " longAvg=" + std::string(String(longAverageCurrent).c_str()));
     }
 
     // Trigger callback on significant positive spike > 15% (0.15) or negative drop of similar magnitude
-    const float spikeThreshold = 0.15f; // 15%
+    const float spikeThreshold = 0.2f; // 15%
     if (change > spikeThreshold)
     {
         logger->LogEvent("ALERT: current change detected: " + std::string(String(change).c_str()));
         if (callBack) callBack();
     }
 
-    currentMEasurementCounter++;
+    // TODO: Only abort in this way if current change is low for 2 seconds
+    // if (abs(change) < 0.01f)
+    // {
+    //     logger->LogEvent("ALERT: current change too steady: " + std::string(String(change).c_str()));
+    //     if (callBack) callBack();
+    // }
+
 }
 
 void Current::PrintCurrent()
@@ -271,7 +286,7 @@ void Current::PrintCurrent()
     float currentValue = ina226->getCurrent_mA();
     float bus = ina226->getBusPower();
     logger->LogEvent("Current(mA): " + std::string(String(currentValue).c_str()));
-    // logger->LogEvent("Power: " + std::string(String(bus).c_str()));
+     logger->LogEvent("Power: " + std::string(String(bus).c_str()));
     // logger->LogEvent("Interupt: " + std::string(String(currentAtLastInterupt).c_str()));
     // logger->LogEvent("InteruptCount: " + std::string(String(interuptCount).c_str()));
 }
