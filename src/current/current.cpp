@@ -257,7 +257,7 @@ void Current::CheckCurrent()
         change = (shortAverageCurrent - longAverageCurrent) / shortAverageCurrent;
 
     // Log occasionally for debugging
-    if ((currentMEasurementCounter % 2) == 0)
+    if ((currentMEasurementCounter % 20) == 0)
     {
         logger->LogEvent("Current check: bus=" + std::string(String(busPower).c_str()) + ", shortAvg=" + std::string(String(shortAverageCurrent).c_str()) + " longAvg=" + std::string(String(longAverageCurrent).c_str()));
     }
