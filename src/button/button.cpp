@@ -50,9 +50,9 @@ void Button::Loop()
 
 
             //Serial.print("Updating avergae. New average = ") ; Serial.println(longRunningAvg );
-            if (longRunningAvg > 15)
+            if (longRunningAvg > 30)
             {
-                longRunningAvg = 15;
+                longRunningAvg = 30;
             }
             //Serial.print("final longRunningAvg = ") ; Serial.println(longRunningAvg );
          }

@@ -14,7 +14,8 @@ BleLogger *bleLogger = new BleLogger();
 //Current *currentMonitor = new Current   (bleLogger);
 //Motor *motorController = new Motor(bleLogger);
 Button *button = new Button();
-Orch *orchestrator = new Orch(bleLogger);
+Preferences preferences;
+Orch *orchestrator;
 //Wifi wifi(&bleLogger);
 Wifi *wifi;
 
@@ -64,8 +65,11 @@ void setup() {
 
     // Just incase we crashed during an operation
     Motor::AllStop();
+    preferences.begin("Triton", false);
 
     Serial.begin(115200);
+
+    orchestrator = new Orch(bleLogger, &preferences);
     
     bleLogger->init(triggerFromBle);
     setupWifi();

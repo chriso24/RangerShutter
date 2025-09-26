@@ -3,24 +3,20 @@
 
 volatile bool Orch::abortRequested = false;
 
-Orch::Orch(ILogger *logger) : logger(logger), directionClose(false), motorController(nullptr), currentMonitor(nullptr), recordedTimeForCycle(0), finishedSuccessfully(false), Task1(NULL) {
+Orch::Orch(ILogger *logger, Preferences *pref) : logger(logger), directionClose(false), motorController(nullptr), currentMonitor(nullptr), recordedTimeForCycle(0), finishedSuccessfully(false), Task1(NULL) {
 
-    if (preferences.begin("Triton", false))
-    {
-    recordedTimeForCycle = preferences.getInt("rtfc", 0);
-    directionClose = preferences.getBool("directionClose", true);
+    preferences = pref;
+    recordedTimeForCycle = preferences->getInt("rtfc", 0);
+    directionClose = preferences->getBool("directionClose", true);
 
      logger->LogEvent("Load time for cycle: " + std::string(String(recordedTimeForCycle).c_str()));
     logger->LogEvent("Load direction close: " + std::string(String(directionClose ? "true" : "false").c_str()));
 
-    
-}
-else{
-    logger->LogEvent("Failed to open preferences");
-    recordedTimeForCycle = 5589;
-    directionClose = true;
-}
-preferences.end();
+    if (recordedTimeForCycle == 0) {
+         logger->LogEvent("No recorded time for cycle found, setting defaults.");
+         recordedTimeForCycle = 5589;
+         directionClose = true;
+    }
 }
 
 Orch::~Orch()
@@ -47,15 +43,18 @@ void Orch::Reset()
     AbortMovement();
     recordedTimeForCycle = 0;
     
-    preferences.begin("Triton", false);
-    preferences.clear();
-    preferences.end();
     // StartMovement(TOGGLE);
 }
 
 void Orch::StartMovement(Command direction)
 {
     bool wasRunning = AbortMovement();
+
+    if (wasRunning)
+    {
+        // We are aborting the current movement. So stop and return;
+        return;
+    }
 
     if (direction == TOGGLE)
     {
@@ -89,12 +88,14 @@ bool Orch::AbortMovement()
             if (taskState < eDeleted)
             {
                 threadRunning = true;
-                logger->LogEvent("Abort current movement");
+                logger->LogEvent("Aborting current movement");
 
                 TickType_t startTick = xTaskGetTickCount();
                 while(isRunning && eTaskGetState(Task1) != eDeleted && (xTaskGetTickCount() - startTick) < pdMS_TO_TICKS(500)) {
                     vTaskDelay(100);
                 }
+
+                logger->LogEvent("Aborted current movement");
             }
         }
     }
@@ -189,9 +190,7 @@ void Orch::PerformCalibration()
     {
         finishedSuccessfully = true;
 
-        preferences.begin("Triton", false);
-        preferences.putInt("rtfc", recordedTimeForCycle);
-        preferences.end();
+        preferences->putInt("rtfc", recordedTimeForCycle);
     }
 }
 
@@ -199,7 +198,7 @@ bool Orch::CheckForAbort()
 {
     if (abortRequested)
     {
-        abortRequested = false;
+        Motor::CurrentInterupt();
         logger->LogEvent("Abort requested");
         return true;
     }
@@ -247,6 +246,7 @@ void Orch::ActionMovement()
 
     currentMonitor->Reset();
     currentMonitor->SetCurrentLimit(Current::CurrentLevel::C_HIGH, !directionClose);
+    currentMonitor->SetAccelartionActive(true);
     abortRequested = false;
 
     vTaskDelay(200);
@@ -257,6 +257,8 @@ void Orch::ActionMovement()
     vTaskDelay(rampingOnRun);
 
     logger->LogEvent("\nCurrent limit normal");
+
+    currentMonitor->SetAccelartionActive(false);
 
     if (CheckForAbort()) return;
     currentMonitor->SetCurrentLimit(isRecoveryRun ? Current::CurrentLevel::C_LOW : Current::CurrentLevel::C_HIGH, !directionClose);
@@ -304,9 +306,7 @@ void Orch::ActionMovement()
     if (CheckForAbort()) return;
     motorController->Stop(false);
 
-    preferences.begin("Triton", false);
-    preferences.putBool("directionClose", directionClose);
-    preferences.end();
+    preferences->putBool("directionClose", directionClose);
 
     
 }

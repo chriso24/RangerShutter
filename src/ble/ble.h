@@ -34,7 +34,6 @@ public:
     
 
 private:
-    std::string getNextLog();
     bool isLogMessageReady();
     void recieveMessage(const std::string &message);
     class MyServerCallbacks;
@@ -53,6 +52,7 @@ private:
     float txValue;
     std::queue<std::string> logQueue;
     bleActivationCallback callBackOnUpdate;
+    SemaphoreHandle_t logMutex;
 };
 
 #endif // BLE_H

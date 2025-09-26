@@ -16,8 +16,14 @@ Current::ShutdownInterup Current::callBack = nullptr;
 // Constructor
 Current::Current(ILogger* logger) : logger(logger)
 {
+     i2cMutex = xSemaphoreCreateMutex();
      pinMode(2, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(2), Current::CurrentInterupt, FALLING);
+}
+
+Current::~Current()
+{
+    vSemaphoreDelete(i2cMutex);
 }
 
 void Current::Init()
@@ -36,15 +42,23 @@ void Current::Init()
 
 void Current::StartupIna226()
 {
-    if (ina226 == nullptr) return;
-    ina226->init();
-    // sensible defaults
-    ina226->setResistorRange(1, 10.0);
-    ina226->setMeasureMode(CONTINUOUS);
-    //ina226->setConversionTime(CONV_TIME_140);
-    // default alert threshold -- user can override via SetCurrentLimit/Percentage
-    ina226->setAlertType(POWER_OVER, maxCurrentLow);
-    ina226->setAlertPinActiveHigh();
+    if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE)
+    {
+        if (ina226 == nullptr) {
+            xSemaphoreGive(i2cMutex);
+            return;
+        }
+        ina226->powerUp();
+        ina226->init();
+        // sensible defaults
+        ina226->setResistorRange(1, 10.0);
+        ina226->setMeasureMode(CONTINUOUS);
+        //ina226->setConversionTime(CONV_TIME_140);
+        // default alert threshold -- user can override via SetCurrentLimit/Percentage
+        ina226->setAlertType(POWER_OVER, maxCurrentLow);
+        ina226->setAlertPinActiveHigh();
+        xSemaphoreGive(i2cMutex);
+    }
 }
 
 // Start the monitoring task. Reentrant-safe: if already running, extend shutdown time.
@@ -75,15 +89,15 @@ void Current::StartMonitor(ShutdownInterup callBackFn, bool slowRun)
     shutdownTime = xTaskGetTickCount() + pdMS_TO_TICKS(60000);
 
     // If a task already exists and is running, extend shutdown and return
-    // TODO: Crashes every time here
-    // if (Task1 != NULL) {
-    //     eTaskState state = eTaskGetState(Task1);
-    //     if (state != eDeleted) {
-    //         shutdownTime = xTaskGetTickCount() + pdMS_TO_TICKS(60000);
-    //         logger->LogEvent("Monitor already running, extended shutdown");
-    //         return;
-    //     }
-    // }
+    // TODO: Crashes half the time - need to debug why
+    if (Task1 != NULL) {
+        eTaskState state = eTaskGetState(Task1);
+        if (state < eDeleted) {
+            shutdownTime = xTaskGetTickCount() + pdMS_TO_TICKS(60000);
+            logger->LogEvent("Monitor already running, extended shutdown");
+            return;
+        }
+    }
 
     logger->LogEvent("Start current monitor");
 
@@ -114,7 +128,7 @@ void Current::Loop(void* p_pParam)
 
     // Ensure the callback is not called unexpectedly here
     vTaskDelete(NULL);
-    self->Task1 = nullptr;
+    self->Task1 = NULL;
     //vTaskDelete(NULL);
 }
 
@@ -138,18 +152,11 @@ void Current::ShutdownIna226()
 {
     // signal the task to stop
     shutdownTime = 1;
-    if (ina226) ina226->powerDown();
-}
-
-void Current::EndThread()
-{
-    ShutdownIna226();
-    if (Task1 != NULL) {
-        vTaskDelete(Task1);
-        Task1 = NULL;
+    if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE)
+    {
+        if (ina226) ina226->powerDown();
+        xSemaphoreGive(i2cMutex);
     }
-    wasRunning = false;
-    logger->LogEvent("End current monitor");
 }
 
 void Current::AttachInteruptForOverCurrent(ShutdownInterup callBackFn)
@@ -169,28 +176,47 @@ void Current::SetCurrentLimitPercentage(float percentage)
     float current = ((maxCurrentHigh - maxCurrentUltraLow) * percentage) + maxCurrentUltraLow;
     logger->LogEvent("Set current limit to: " + std::string(String(current).c_str()));
 
-    if (!ina226) return;
-    
-    ina226->setAlertType(POWER_OVER, current);
-    
+    if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE)
+    {
+        if (!ina226) {
+            xSemaphoreGive(i2cMutex);
+            return;
+        }
+        ina226->setAlertType(POWER_OVER, current);
+        xSemaphoreGive(i2cMutex);
+    }
 }
 
 bool Current::CheckInit()
 {
-    if (!ina226) return false;
-    ina226->readAndClearFlags();
-    float voltage = ina226->getBusVoltage_V();
-    if (voltage <= 0.01) {
-        logger->LogEvent("INA226 init: no voltage");
-        return false;
+    bool result = false;
+    if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE)
+    {
+        if (!ina226) {
+            xSemaphoreGive(i2cMutex);
+            return false;
+        }
+        ina226->readAndClearFlags();
+        float voltage = ina226->getBusVoltage_V();
+        if (voltage <= 0.01) {
+            logger->LogEvent("INA226 init: no voltage");
+            result = false;
+        } else {
+            result = true;
+        }
+        xSemaphoreGive(i2cMutex);
     }
-    return true;
+    return result;
 }
 
 void Current::Reset()
 {
-    if (ina226) ina226->readAndClearFlags();
-    interuptCount = 0;
+    if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE)
+    {
+        if (ina226) ina226->readAndClearFlags();
+        interuptCount = 0;
+        xSemaphoreGive(i2cMutex);
+    }
 }
 
 void Current::SetCurrentLimit(Current::CurrentLevel level, bool closing)
@@ -198,41 +224,63 @@ void Current::SetCurrentLimit(Current::CurrentLevel level, bool closing)
     SetCurrentValue(level, closing);
 }
 
+void Current::SetAccelartionActive(bool active)
+{
+    accelerationActive = active;
+}   
+
 void Current::SetCurrentValue(Current::CurrentLevel level, bool closing)
 {
-    if (!ina226) return;
-    float val = maxCurrentHigh;
-    switch (level)
+    if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE)
     {
-    case CurrentLevel::C_HIGH:
-        val = closing ? maxCurrentHigh * 1.05f : maxCurrentHigh;
-        logger->LogEvent("SetCurrentValue: HIGH" + std::string(String(val).c_str()));
-        break;
-    case CurrentLevel::C_MEDIUM:
-        val = closing ? maxCurrentLow * 1.1f : maxCurrentLow;
-        logger->LogEvent("SetCurrentValue: MEDIUM" + std::string(String(val).c_str()) );
-        break;
-    case CurrentLevel::C_LOW:
-        val = closing ? maxCurrentUltraLow * 1.1f : maxCurrentUltraLow;
-        logger->LogEvent("SetCurrentValue: LOW" + std::string(String(val).c_str()));
-        break;
-    case CurrentLevel::C_VLOW:
-        val = maxCurrentUltraUltraLow;
-        logger->LogEvent("SetCurrentValue: VLOW" + std::string(String(val).c_str()));
-        break;
+        if (!ina226) {
+            xSemaphoreGive(i2cMutex);
+            return;
+        }
+        float val = maxCurrentHigh;
+        switch (level)
+        {
+        case CurrentLevel::C_HIGH:
+            val = closing ? maxCurrentHigh * 1.05f : maxCurrentHigh;
+            logger->LogEvent("SetCurrentValue: HIGH" + std::string(String(val).c_str()));
+            break;
+        case CurrentLevel::C_MEDIUM:
+            val = closing ? maxCurrentLow * 1.1f : maxCurrentLow;
+            logger->LogEvent("SetCurrentValue: MEDIUM" + std::string(String(val).c_str()) );
+            break;
+        case CurrentLevel::C_LOW:
+            val = closing ? maxCurrentUltraLow * 1.1f : maxCurrentUltraLow;
+            logger->LogEvent("SetCurrentValue: LOW" + std::string(String(val).c_str()));
+            break;
+        case CurrentLevel::C_VLOW:
+            val = maxCurrentUltraUltraLow;
+            logger->LogEvent("SetCurrentValue: VLOW" + std::string(String(val).c_str()));
+            break;
+        }
+        logger->LogEvent("SetCurrent: " + std::string(String(val).c_str()));
+        ina226->setAlertType(POWER_OVER, val);
+        currentLevel = level;
+        xSemaphoreGive(i2cMutex);
     }
-    ina226->setAlertType(POWER_OVER, val);
-    currentLevel = level;
 }
 
 // Core monitoring logic: measure, update moving averages, detect spike >15% and call callback.
 void Current::CheckCurrent()
 {
-    if (!ina226) return;
+    float busPower = 0;
+    if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE)
+    {
+        if (!ina226) {
+            xSemaphoreGive(i2cMutex);
+            return;
+        }
 
-    // Read measurement, be robust to occasional 0 readings
-    ina226->readAndClearFlags();
-    float busPower = ina226->getBusPower();
+        // Read measurement, be robust to occasional 0 readings
+        ina226->readAndClearFlags();
+        busPower = ina226->getBusPower();
+        xSemaphoreGive(i2cMutex);
+    }
+
     if (busPower < minCurrentRead) {
         // ignore low/no-load readings
         return;
@@ -271,7 +319,7 @@ void Current::CheckCurrent()
     }
 
     // Trigger callback on significant positive spike > 15% (0.15) or negative drop of similar magnitude
-    const float spikeThreshold = 0.2f; // 15%
+    const float spikeThreshold = accelerationActive ? 0.5f :  0.2f; // 15%
     if (change > spikeThreshold)
     {
         logger->LogEvent("ALERT: current change detected: " + std::string(String(change).c_str()));
@@ -289,13 +337,18 @@ void Current::CheckCurrent()
 
 void Current::PrintCurrent()
 {
-    if (!ina226) return;
-    ina226->readAndClearFlags();
-    float currentValue = ina226->getCurrent_mA();
-    float bus = ina226->getBusPower();
-    logger->LogEvent("Current(mA): " + std::string(String(currentValue).c_str()));
-     logger->LogEvent("Power: " + std::string(String(bus).c_str()));
-    // logger->LogEvent("Interupt: " + std::string(String(currentAtLastInterupt).c_str()));
-    // logger->LogEvent("InteruptCount: " + std::string(String(interuptCount).c_str()));
+    if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE)
+    {
+        if (!ina226) {
+            xSemaphoreGive(i2cMutex);
+            return;
+        }
+        ina226->readAndClearFlags();
+        float currentValue = ina226->getCurrent_mA();
+        float bus = ina226->getBusPower();
+        logger->LogEvent("Current(mA): " + std::string(String(currentValue).c_str()));
+        logger->LogEvent("Power: " + std::string(String(bus).c_str()));
+        xSemaphoreGive(i2cMutex);
+    }
 }
 

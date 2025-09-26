@@ -15,7 +15,7 @@ public:
         TOGGLE
     };
 
-    Orch(ILogger* logger);
+    Orch(ILogger* logger, Preferences *pref);
     ~Orch();
     //void Init(Motor* motorController, Current* currentMonitor);
     void StartMovement(Command direction);
@@ -39,7 +39,7 @@ void SetupSystem();
 bool CheckForAbort();
 
     ILogger* logger;
-    Preferences preferences;
+    Preferences* preferences;
     bool directionClose;
     Motor* motorController;
     Current* currentMonitor;

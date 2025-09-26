@@ -68,7 +68,9 @@ public:
 }
 };
 
-BleLogger::BleLogger() : pServer(nullptr), pServerCallbacks(nullptr), pRxCallbacks(nullptr), pTxCallbacks(nullptr), pCharacteristic_tx(nullptr), pCharacteristic_rx(nullptr), deviceConnected(false), txValue(0) {}
+BleLogger::BleLogger() : pServer(nullptr), pServerCallbacks(nullptr), pRxCallbacks(nullptr), pTxCallbacks(nullptr), pCharacteristic_tx(nullptr), pCharacteristic_rx(nullptr), deviceConnected(false), txValue(0) {
+    logMutex = xSemaphoreCreateMutex();
+}
 
 // In BleLogger class, add destructor
 BleLogger::~BleLogger() {
@@ -78,6 +80,7 @@ BleLogger::~BleLogger() {
     delete pServerCallbacks;
     delete pRxCallbacks;
     delete pTxCallbacks;
+    vSemaphoreDelete(logMutex);
 }
 
 void BleLogger::init(bleActivationCallback callBack) {
@@ -133,17 +136,14 @@ void BleLogger::LogEvent(const std::string& message) {
     Serial.println(message.c_str());
 }
 
-std::string BleLogger::getNextLog() {
-    if (logQueue.empty()) {
-        return "";
-    }
-    std::string message = logQueue.front();
-    logQueue.pop();
-    return message;
-}
 
 bool BleLogger::isLogMessageReady() {
-    return !logQueue.empty();
+    bool isMessageReady = false;
+    if (xSemaphoreTake(logMutex, portMAX_DELAY) == pdTRUE) {
+        isMessageReady = !logQueue.empty();
+        xSemaphoreGive(logMutex);
+    }
+    return isMessageReady;
 }
 
 void BleLogger::loop() {

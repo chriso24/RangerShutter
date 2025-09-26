@@ -15,6 +15,7 @@ public:
     };
 
     Current(ILogger* logger);
+    ~Current();
     typedef void(*ShutdownInterup)(void);
     static void CurrentInterupt();
 
@@ -24,13 +25,13 @@ public:
     void ContinuousSampling();
     void Reset();
     void CheckCurrent();
+    void SetAccelartionActive(bool active);
     void StartMonitor(ShutdownInterup callBack, bool slowRun);
     void ShutdownIna226();
     void SetCurrentLimit(CurrentLevel level, bool closing);
     void SetCurrentLimitPercentage(float percentage);
     void PrintCurrent();
     static void Loop(void* p_pParam);
-    void EndThread();
     void RunMonitor();
 
 private:
@@ -42,6 +43,8 @@ private:
 
     const int I2C_SDA = 21;
     const int I2C_SCL = 22;
+
+    bool accelerationActive = false;
 
     bool wasRunning = false;
     CurrentLevel currentLevel;
@@ -66,7 +69,8 @@ private:
     bool isSlowRun;
     long currentMEasurementCounter = 0;
     TickType_t shutdownTime;
-    TaskHandle_t Task1;
+    TaskHandle_t Task1 = NULL;
+    SemaphoreHandle_t i2cMutex;
 };
 
 #endif // CURRENT_H
