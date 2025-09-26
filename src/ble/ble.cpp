@@ -127,11 +127,15 @@ void BleLogger::restartBleAdvertisment() {
 }
 
 void BleLogger::LogEvent(const std::string& message) {
+
+    if (xSemaphoreTake(logMutex, portMAX_DELAY) == pdTRUE) {
     if (logQueue.size() > 100) {
         logQueue.front().clear();
         logQueue.pop(); // Remove oldest message if queue is too large
     }
     logQueue.push(message);
+    xSemaphoreGive(logMutex);
+}
 
     Serial.println(message.c_str());
 }
