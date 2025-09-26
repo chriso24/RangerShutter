@@ -153,7 +153,16 @@ bool BleLogger::isLogMessageReady() {
 void BleLogger::loop() {
   if (deviceConnected && isLogMessageReady() && xTaskGetTickCount() >= startSendingMessagesAt) {
 
-    std::string logMessage = logQueue.front();
+    std::string logMessage;
+
+    if (xSemaphoreTake(logMutex, portMAX_DELAY) == pdTRUE) {
+        logMessage = logQueue.front();
+        logQueue.pop();
+        xSemaphoreGive(logMutex);
+    }
+    else {
+        return;
+    }
 
     Serial.println("Start sending logs");
 
@@ -164,7 +173,6 @@ void BleLogger::loop() {
         Serial.println("Log sent");
     }
     logMessage.clear();
-    logQueue.pop();
 
     if ((xTaskGetTickCount() - lastMessageTime) > silenceTimeout) {
         LogEvent("Client disconnected due to inactivity");

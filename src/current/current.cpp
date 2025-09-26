@@ -91,12 +91,7 @@ void Current::StartMonitor(ShutdownInterup callBackFn, bool slowRun)
     // If a task already exists and is running, extend shutdown and return
     // TODO: Crashes half the time - need to debug why
     if (Task1 != NULL) {
-        eTaskState state = eTaskGetState(Task1);
-        if (state < eDeleted) {
-            shutdownTime = xTaskGetTickCount() + pdMS_TO_TICKS(60000);
-            logger->LogEvent("Monitor already running, extended shutdown");
-            return;
-        }
+        ShutdownMonitor();
     }
 
     logger->LogEvent("Start current monitor");
@@ -156,6 +151,28 @@ void Current::ShutdownIna226()
     {
         if (ina226) ina226->powerDown();
         xSemaphoreGive(i2cMutex);
+    }
+}
+
+void Current::ShutdownMonitor()
+{
+    // signal the task to stop
+    shutdownTime = 1;
+    if (Task1 != NULL)
+    {
+        eTaskState taskState = eTaskGetState(Task1);
+        if (taskState < eDeleted)
+        {
+            logger->LogEvent("Aborting current monitor");
+
+            TickType_t startTick = xTaskGetTickCount();
+            while(Task1 != NULL && eTaskGetState(Task1) < eDeleted && (xTaskGetTickCount() - startTick) < pdMS_TO_TICKS(500)) {
+                vTaskDelay(100);
+            }
+            
+            Task1 = NULL; // Set to null before deleting
+            logger->LogEvent("Aborted current monitor");
+        }
     }
 }
 

@@ -91,7 +91,7 @@ bool Orch::AbortMovement()
                 logger->LogEvent("Aborting current movement");
 
                 TickType_t startTick = xTaskGetTickCount();
-                while(isRunning && eTaskGetState(Task1) != eDeleted && (xTaskGetTickCount() - startTick) < pdMS_TO_TICKS(500)) {
+                while(Task1 != NULL && isRunning && eTaskGetState(Task1) != eDeleted && (xTaskGetTickCount() - startTick) < pdMS_TO_TICKS(500)) {
                     vTaskDelay(100);
                 }
 
@@ -108,7 +108,7 @@ bool Orch::AbortMovement()
         motorController->Stop(false);
 
     if (currentMonitor != nullptr)    
-        currentMonitor->ShutdownIna226();
+        currentMonitor->ShutdownMonitor();
 
     return threadRunning;
 }
@@ -132,7 +132,7 @@ void Orch::Loop(void *pvParameters)
         p_pThis->logger->LogEvent("Thread movement aborted: " + std::string(e.what()));
     }
 
-    p_pThis->currentMonitor->ShutdownIna226();
+    p_pThis->currentMonitor->ShutdownMonitor();
     p_pThis->motorController->Stop(false);
     p_pThis->logger->LogEvent("Finish:" + std::string(p_pThis->directionClose ? "Close" : "Open"));
     

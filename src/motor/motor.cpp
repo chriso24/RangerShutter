@@ -125,7 +125,6 @@ int Motor::GetCalibratedRunTime(bool force)
     Stop(true);
 
     currentMonitor->Reset();
-    currentMonitor->ShutdownIna226();
 
     return cycleTime;
 }

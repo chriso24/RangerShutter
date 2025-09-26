@@ -27,7 +27,7 @@ public:
     void CheckCurrent();
     void SetAccelartionActive(bool active);
     void StartMonitor(ShutdownInterup callBack, bool slowRun);
-    void ShutdownIna226();
+    void ShutdownMonitor();
     void SetCurrentLimit(CurrentLevel level, bool closing);
     void SetCurrentLimitPercentage(float percentage);
     void PrintCurrent();
@@ -59,6 +59,7 @@ private:
     static constexpr float maxCurrentUltraUltraLow = 360.0;
     static constexpr float minCurrentRead = 200.0;
     static INA226_WE* ina226;
+    void ShutdownIna226();
     void StartupIna226();
     bool CheckInit();
     void SetCurrentValue(CurrentLevel level, bool closing);
