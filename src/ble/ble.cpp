@@ -125,6 +125,7 @@ void BleLogger::restartBleAdvertisment() {
 
 void BleLogger::LogEvent(const std::string& message) {
     if (logQueue.size() > 100) {
+        logQueue.front().clear();
         logQueue.pop(); // Remove oldest message if queue is too large
     }
     logQueue.push(message);
@@ -158,6 +159,7 @@ void BleLogger::loop() {
         lastMessageTime = xTaskGetTickCount();
         Serial.println("Log sent");
     }
+    logMessage.clear();
     logQueue.pop();
 
     if ((xTaskGetTickCount() - lastMessageTime) > silenceTimeout) {

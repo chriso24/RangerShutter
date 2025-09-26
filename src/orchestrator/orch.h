@@ -36,7 +36,7 @@ public:
 private:
 
 void SetupSystem();
-void CheckForAbort();
+bool CheckForAbort();
 
     ILogger* logger;
     Preferences preferences;

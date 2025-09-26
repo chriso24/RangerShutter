@@ -1,15 +1,26 @@
 #include "Orch.h"
 #include <Preferences.h>
 
+volatile bool Orch::abortRequested = false;
+
 Orch::Orch(ILogger *logger) : logger(logger), directionClose(false), motorController(nullptr), currentMonitor(nullptr), recordedTimeForCycle(0), finishedSuccessfully(false), Task1(NULL) {
 
-    preferences.begin("Triton", false);
+    if (preferences.begin("Triton", false))
+    {
     recordedTimeForCycle = preferences.getInt("rtfc", 0);
     directionClose = preferences.getBool("directionClose", true);
 
      logger->LogEvent("Load time for cycle: " + std::string(String(recordedTimeForCycle).c_str()));
     logger->LogEvent("Load direction close: " + std::string(String(directionClose ? "true" : "false").c_str()));
 
+    
+}
+else{
+    logger->LogEvent("Failed to open preferences");
+    recordedTimeForCycle = 5589;
+    directionClose = true;
+}
+preferences.end();
 }
 
 Orch::~Orch()
@@ -35,7 +46,10 @@ void Orch::Reset()
 {
     AbortMovement();
     recordedTimeForCycle = 0;
+    
+    preferences.begin("Triton", false);
     preferences.clear();
+    preferences.end();
     // StartMovement(TOGGLE);
 }
 
@@ -112,10 +126,14 @@ void Orch::Loop(void *pvParameters)
         else
             p_pThis->PerformCalibration();
     }
-    catch(const std::exception& e)
+    catch(const std::runtime_error& e)
     {
         p_pThis->logger->LogEvent("Thread movement aborted: " + std::string(e.what()));
     }
+
+    p_pThis->currentMonitor->ShutdownIna226();
+    p_pThis->motorController->Stop(false);
+    p_pThis->logger->LogEvent("Finish:" + std::string(p_pThis->directionClose ? "Close" : "Open"));
     
 
     UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
@@ -134,10 +152,12 @@ void Orch::EndThread()
 
 void Orch::SetupSystem()
 {
-    motorController = new Motor(logger);
-    motorController->Init(currentMonitor);
+    abortRequested = false;
     currentMonitor = new Current(logger);
     currentMonitor->Init(); 
+    motorController = new Motor(logger);
+    motorController->Init(currentMonitor);
+   
 }
 
 bool Orch::isIdle()
@@ -169,23 +189,27 @@ void Orch::PerformCalibration()
     {
         finishedSuccessfully = true;
 
+        preferences.begin("Triton", false);
         preferences.putInt("rtfc", recordedTimeForCycle);
+        preferences.end();
     }
 }
 
-void Orch::CheckForAbort()
+bool Orch::CheckForAbort()
 {
     if (abortRequested)
     {
         abortRequested = false;
-        throw std::runtime_error("Movement aborted");
+        logger->LogEvent("Abort requested");
+        return true;
     }
+    return false;
 }
 
 
 void Orch::CurrentInterupt()
 {
-   Orch::abortRequested = true;
+   abortRequested = true;
    Motor::CurrentInterupt();
 }
 
@@ -221,9 +245,10 @@ void Orch::ActionMovement()
 
     TickType_t startTick = xTaskGetTickCount();
 
-    CheckForAbort();
     currentMonitor->Reset();
     currentMonitor->SetCurrentLimit(Current::CurrentLevel::C_HIGH, !directionClose);
+    abortRequested = false;
+
     vTaskDelay(200);
     logger->LogEvent("\nCurrent limit max");
 
@@ -233,7 +258,7 @@ void Orch::ActionMovement()
 
     logger->LogEvent("\nCurrent limit normal");
 
-    CheckForAbort();
+    if (CheckForAbort()) return;
     currentMonitor->SetCurrentLimit(isRecoveryRun ? Current::CurrentLevel::C_LOW : Current::CurrentLevel::C_HIGH, !directionClose);
 
     while ((xTaskGetTickCount() - startTick) < timeForCycle && !abortRequested)
@@ -244,18 +269,18 @@ void Orch::ActionMovement()
 
     logger->LogEvent("Slowing things down for end of cycle");
 
-    CheckForAbort();
+    if (CheckForAbort()) return;
 
     if (!isRecoveryRun)
         if (motorController->IsRunning())
         {
             logger->LogEvent("Success run");
             finishedSuccessfully = true;
-            CheckForAbort();
+            if (CheckForAbort()) return;
             motorController->SetSpeedAndDirection(directionClose, slowSpeed, 5, true);
             vTaskDelay(100);
 
-            CheckForAbort();
+            if (CheckForAbort()) return;
             currentMonitor->SetCurrentLimit(Current::CurrentLevel::C_VLOW, !directionClose);
         }
         else
@@ -276,12 +301,12 @@ void Orch::ActionMovement()
         motorController->Stop(false);
     }
 
-    CheckForAbort();
+    if (CheckForAbort()) return;
     motorController->Stop(false);
 
+    preferences.begin("Triton", false);
     preferences.putBool("directionClose", directionClose);
+    preferences.end();
 
-    CheckForAbort();
-    currentMonitor->ShutdownIna226();
-    logger->LogEvent("Finish:" + std::string(directionClose ? "Close" : "Open"));
+    
 }

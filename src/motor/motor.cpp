@@ -11,6 +11,13 @@ volatile int Motor::currentPositionEstimate;
 int Motor::CurrentSpeed;
 
 
+void Motor::AllStop() {
+    Motor::inMotion = 0;
+    Motor::CurrentSpeed = 0;
+    analogWrite(Motor::motor_L, 0);
+    analogWrite(Motor::motor_R, 0);
+}   
+
 Motor::Motor(ILogger* logger) : logger(logger)
 {
     CurrentSpeed = 0;
@@ -25,8 +32,7 @@ void Motor::Init(Current *current)
 {
     currentMonitor = current;
     currentMonitor->AttachInteruptForOverCurrent(Motor::CurrentInterupt);
-    //pinMode(2, INPUT_PULLUP);
-    //attachInterrupt(digitalPinToInterrupt(2), Motor::CurrentInterupt, FALLING);
+   
     Stop(true);
 }
 

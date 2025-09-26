@@ -30,19 +30,6 @@ void WifiUpdateStarting() {
 }
 
 
-void triggerFromBle(BleLogger::Command command) {
-    bleLogger->LogEvent("Toggle shutter from BLE.");
-
-    if (command == BleLogger::Command::OPEN) {
-        orchestrator->StartMovement(Orch::TOGGLE);
-    } else if (command == BleLogger::Command::CLOSE) {
-        orchestrator->StartMovement(Orch::TOGGLE);
-    } else if (command == BleLogger::Command::RESET) {
-        orchestrator->Reset();
-    }   else if (command == BleLogger::Command::WIFI) {
-        setupWifi();
-    }
-}
 
 void setupWifi()
 {
@@ -57,8 +44,27 @@ void setupWifi()
         wifi->StartWifi();
 }
 
+void triggerFromBle(BleLogger::Command command) {
+    bleLogger->LogEvent("Toggle shutter from BLE.");
+
+    if (command == BleLogger::Command::OPEN) {
+        orchestrator->StartMovement(Orch::TOGGLE);
+    } else if (command == BleLogger::Command::CLOSE) {
+        orchestrator->StartMovement(Orch::TOGGLE);
+    } else if (command == BleLogger::Command::RESET) {
+        orchestrator->Reset();
+    }   else if (command == BleLogger::Command::WIFI) {
+        setupWifi();
+    }
+}
+
+
 void setup() {
     enableLoopWDT();
+
+    // Just incase we crashed during an operation
+    Motor::AllStop();
+
     Serial.begin(115200);
     
     bleLogger->init(triggerFromBle);

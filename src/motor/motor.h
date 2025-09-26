@@ -26,6 +26,7 @@ public:
     void Loop();
     bool IsRunning();
     int GetCalibratedRunTime(bool force);
+    static void AllStop();
 
 private:
     ILogger* logger;

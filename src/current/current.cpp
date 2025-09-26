@@ -16,6 +16,8 @@ Current::ShutdownInterup Current::callBack = nullptr;
 // Constructor
 Current::Current(ILogger* logger) : logger(logger)
 {
+     pinMode(2, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(2), Current::CurrentInterupt, FALLING);
 }
 
 void Current::Init()
@@ -73,14 +75,15 @@ void Current::StartMonitor(ShutdownInterup callBackFn, bool slowRun)
     shutdownTime = xTaskGetTickCount() + pdMS_TO_TICKS(60000);
 
     // If a task already exists and is running, extend shutdown and return
-    if (Task1 != NULL) {
-        eTaskState state = eTaskGetState(Task1);
-        if (state != eDeleted) {
-            shutdownTime = xTaskGetTickCount() + pdMS_TO_TICKS(60000);
-            logger->LogEvent("Monitor already running, extended shutdown");
-            return;
-        }
-    }
+    // TODO: Crashes every time here
+    // if (Task1 != NULL) {
+    //     eTaskState state = eTaskGetState(Task1);
+    //     if (state != eDeleted) {
+    //         shutdownTime = xTaskGetTickCount() + pdMS_TO_TICKS(60000);
+    //         logger->LogEvent("Monitor already running, extended shutdown");
+    //         return;
+    //     }
+    // }
 
     logger->LogEvent("Start current monitor");
 
@@ -111,13 +114,14 @@ void Current::Loop(void* p_pParam)
 
     // Ensure the callback is not called unexpectedly here
     vTaskDelete(NULL);
+    self->Task1 = nullptr;
     //vTaskDelete(NULL);
 }
 
 void Current::RunMonitor()
 {
     Init();
-    const TickType_t pollDelay = 2; // 1ms between measurements (ideal 140 us, but 1ms is the smallest) matches CONV_TIME_140)
+    const TickType_t pollDelay = 10; // 1ms between measurements (ideal 140 us, but 1ms is the smallest) matches CONV_TIME_140)
     currentMEasurementCounter = 0;
 
     while (shutdownTime == 0 || shutdownTime > xTaskGetTickCount())
@@ -155,16 +159,20 @@ void Current::AttachInteruptForOverCurrent(ShutdownInterup callBackFn)
 
 void Current::CurrentInterupt()
 {
+ //   Serial.println("Current interupt triggered from pin high");
     interuptCount++;
     if (callBack) callBack();
 }
 
 void Current::SetCurrentLimitPercentage(float percentage)
 {
-    if (!ina226) return;
     float current = ((maxCurrentHigh - maxCurrentUltraLow) * percentage) + maxCurrentUltraLow;
-    ina226->setAlertType(POWER_OVER, current);
     logger->LogEvent("Set current limit to: " + std::string(String(current).c_str()));
+
+    if (!ina226) return;
+    
+    ina226->setAlertType(POWER_OVER, current);
+    
 }
 
 bool Current::CheckInit()
@@ -198,19 +206,19 @@ void Current::SetCurrentValue(Current::CurrentLevel level, bool closing)
     {
     case CurrentLevel::C_HIGH:
         val = closing ? maxCurrentHigh * 1.05f : maxCurrentHigh;
-        logger->LogEvent("SetCurrentValue: HIGH");
+        logger->LogEvent("SetCurrentValue: HIGH" + std::string(String(val).c_str()));
         break;
     case CurrentLevel::C_MEDIUM:
         val = closing ? maxCurrentLow * 1.1f : maxCurrentLow;
-        logger->LogEvent("SetCurrentValue: MEDIUM");
+        logger->LogEvent("SetCurrentValue: MEDIUM" + std::string(String(val).c_str()) );
         break;
     case CurrentLevel::C_LOW:
         val = closing ? maxCurrentUltraLow * 1.1f : maxCurrentUltraLow;
-        logger->LogEvent("SetCurrentValue: LOW");
+        logger->LogEvent("SetCurrentValue: LOW" + std::string(String(val).c_str()));
         break;
     case CurrentLevel::C_VLOW:
         val = maxCurrentUltraUltraLow;
-        logger->LogEvent("SetCurrentValue: VLOW");
+        logger->LogEvent("SetCurrentValue: VLOW" + std::string(String(val).c_str()));
         break;
     }
     ina226->setAlertType(POWER_OVER, val);

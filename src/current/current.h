@@ -52,7 +52,7 @@ private:
     static const int movingAverageSizeLarge = 10;
     static constexpr float maxCurrentHigh = 850.0;
     static constexpr float maxCurrentLow = 780.0;
-    static constexpr float maxCurrentUltraLow = 420.0;
+    static constexpr float maxCurrentUltraLow = 490.0;
     static constexpr float maxCurrentUltraUltraLow = 360.0;
     static constexpr float minCurrentRead = 200.0;
     static INA226_WE* ina226;
