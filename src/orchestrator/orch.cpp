@@ -134,7 +134,7 @@ void Orch::Loop(void *pvParameters)
 
     p_pThis->currentMonitor->ShutdownMonitor();
     p_pThis->motorController->Stop(false);
-    p_pThis->logger->LogEvent("Finish:" + std::string(p_pThis->directionClose ? "Close" : "Open"));
+    p_pThis->logger->LogEvent("Finish:" + std::string(p_pThis->directionClose ? "Open": "Close"));
     
 
     UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
@@ -230,14 +230,14 @@ void Orch::ActionMovement()
 
     finishedSuccessfully = false;
 
-    if (!directionClose)
+    if (directionClose)
     {
         logger->LogEvent("Start:Close");
-        timeForCycle = timeForCycle * 1.05;
     }
     else
     {
         logger->LogEvent("Start:Open");
+        timeForCycle = timeForCycle * 1.05;
     }
 
     logger->LogEvent("Cycle time = " + std::string(String(timeForCycle).c_str()));

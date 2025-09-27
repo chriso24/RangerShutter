@@ -56,7 +56,12 @@ public:
     MyCallbacks(BleLogger* logger) : pBleLogger(logger) {}
     void onRead(BLECharacteristic *pCharacteristic) {
 
-        Serial.println("Ble onRead");
+        std::string message = pBleLogger->fetchLogMessage(); // Clear the message as it has been read
+        pCharacteristic->setValue(message); // Send empty string if no message
+        
+        message.clear();
+        Serial.println("Ble onRead: " + String(pCharacteristic->getValue().c_str()));
+        pBleLogger->messageWaitingForClient = false;
     }
     void onWrite(BLECharacteristic *pCharacteristic) {
         std::string rxValue = pCharacteristic->getValue();
@@ -126,6 +131,18 @@ void BleLogger::restartBleAdvertisment() {
     pServer->getAdvertising()->start();
 }
 
+std::string BleLogger::fetchLogMessage() {
+    std::string logMessage;
+    if (xSemaphoreTake(logMutex, portMAX_DELAY) == pdTRUE) {
+        if (!logQueue.empty()) {
+            logMessage = logQueue.front();
+            logQueue.pop();
+        }
+        xSemaphoreGive(logMutex);
+    }
+    return logMessage;
+}   
+
 void BleLogger::LogEvent(const std::string& message) {
 
     if (xSemaphoreTake(logMutex, portMAX_DELAY) == pdTRUE) {
@@ -151,28 +168,32 @@ bool BleLogger::isLogMessageReady() {
 }
 
 void BleLogger::loop() {
-  if (deviceConnected && isLogMessageReady() && xTaskGetTickCount() >= startSendingMessagesAt) {
+  if (!messageWaitingForClient && deviceConnected && isLogMessageReady() && xTaskGetTickCount() >= startSendingMessagesAt) {
 
-    std::string logMessage;
+    pCharacteristic_tx->notify();
+    lastMessageTime = xTaskGetTickCount();
+    messageWaitingForClient = true;
+    // std::string logMessage;
 
-    if (xSemaphoreTake(logMutex, portMAX_DELAY) == pdTRUE) {
-        logMessage = logQueue.front();
-        logQueue.pop();
-        xSemaphoreGive(logMutex);
-    }
-    else {
-        return;
-    }
+    // if (xSemaphoreTake(logMutex, portMAX_DELAY) == pdTRUE) {
+    //     logMessage = logQueue.front();
+    //     logQueue.pop();
+    //     xSemaphoreGive(logMutex);
+    // }
+    // else {
+    //     return;
+    // }
 
-    Serial.println("Start sending logs");
+    // Serial.println("Start sending logs: " + String(logMessage.c_str()));
 
-    if (!logMessage.empty()) {
-        pCharacteristic_tx->setValue(logMessage);
-        pCharacteristic_tx->notify();
-        lastMessageTime = xTaskGetTickCount();
-        Serial.println("Log sent");
-    }
-    logMessage.clear();
+    // if (!logMessage.empty()) {
+    //     pCharacteristic_tx->setValue(logMessage);
+    //     messageWaitingForClient = true;
+    //     pCharacteristic_tx->notify();
+    //     lastMessageTime = xTaskGetTickCount();
+    //     Serial.println("Log sent");
+    // }
+    // logMessage.clear();
 
     if ((xTaskGetTickCount() - lastMessageTime) > silenceTimeout) {
         LogEvent("Client disconnected due to inactivity");

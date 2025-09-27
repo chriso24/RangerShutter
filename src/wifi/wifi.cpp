@@ -113,7 +113,7 @@ void Wifi::Loop(void *pvParameters)
 
 void Wifi::HandleWifi()
 {
-    logger->LogEvent("\nWifi listening");
+    logger->LogEvent("Wifi listening");
     for (;;)
     {
         ArduinoOTA.handle();

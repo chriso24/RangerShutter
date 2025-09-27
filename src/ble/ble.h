@@ -31,6 +31,7 @@ public:
     void loop();
     void LogEvent(const std::string& message) override;
     bool isConnected();
+    std::string fetchLogMessage();
     
 
 private:
@@ -38,6 +39,7 @@ private:
     void recieveMessage(const std::string &message);
     class MyServerCallbacks;
     class MyCallbacks;
+    volatile bool messageWaitingForClient = false;
 
     BLEServer *pServer;
     MyServerCallbacks* pServerCallbacks;
