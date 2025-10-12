@@ -137,7 +137,7 @@ void Button::Loop(bool sleepMode)
         else
         {
             touchDetachInterrupt(T0);
-            timeForNextSleep = xTaskGetTickCount() + pdMS_TO_TICKS(10000); // 10 seconds from now
+            timeForNextSleep = xTaskGetTickCount() + pdMS_TO_TICKS(20000); // 10 seconds from now
             Serial.println("Woke up from other reason");
         }
         
