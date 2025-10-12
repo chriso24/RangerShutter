@@ -13,6 +13,12 @@ volatile int Current::interuptCount = 0;
 float Current::currentAtLastInterupt = 0.0;
 Current::ShutdownInterup Current::callBack = nullptr;
 
+float Current::maxCurrentHigh = Current::defaultMaxCurrentHigh;
+float Current::maxCurrentLow = Current::defaultMaxCurrentLow;
+float Current::maxCurrentUltraLow = Current::defaultMaxCurrentUltraLow;
+float Current::maxCurrentUltraUltraLow = Current::defaultMaxCurrentUltraUltraLow;
+
+
 // Constructor
 Current::Current(ILogger* logger) : logger(logger)
 {
@@ -158,6 +164,34 @@ void Current::ShutdownIna226()
     logger->LogEvent("INA226 powered down");
 }
 
+float Current::GetBatteryPercentage()
+{
+    // Placeholder for battery percentage logic
+    if (currentVoltage == 0.0f) return 1.0f; // No reading yet default 100%%
+
+    return (currentVoltage / 14.0f); 
+}
+
+void Current::AdjustCurrentLimits( bool increase)
+{
+    if (increase && (maxCurrentHigh < defaultMaxCurrentHigh * 1.3))
+    {
+        maxCurrentHigh += 10.0f;
+        maxCurrentLow += 10.0f;
+        maxCurrentUltraLow += 10.0f;
+        maxCurrentUltraUltraLow += 10.0f;
+        logger->LogEvent("Increased current limits");
+    }
+    else if (!increase && (maxCurrentHigh > defaultMaxCurrentHigh * 0.7))
+    {
+        maxCurrentHigh -= 1.0f;
+        maxCurrentLow -= 1.0f;
+        maxCurrentUltraLow -= 1.0f;
+        maxCurrentUltraUltraLow -= 1.0f;
+        logger->LogEvent("Decreased current limits");
+    }
+}
+
 void Current::ShutdownMonitor()
 {
     // signal the task to stop
@@ -299,6 +333,7 @@ void Current::CheckCurrent()
         // Read measurement, be robust to occasional 0 readings
         ina226->readAndClearFlags();
         busPower = ina226->getBusPower();
+        currentVoltage = ina226->getBusVoltage_V();
         xSemaphoreGive(i2cMutex);
     }
 

@@ -63,6 +63,7 @@ void triggerFromBle(BleLogger::Command command) {
 
 void setup() {
     enableLoopWDT();
+
     //esp_task_wdt_init(10, true);
     
     //disableCore1WDT();
@@ -78,7 +79,7 @@ void setup() {
     bleLogger->init(triggerFromBle);
     //setupWifi();
 
-    // button.Init();
+    button->Init();
     // currentMonitor.Init();
     // motorController.Init(&currentMonitor);
     //orchestrator->Init(&motorController, &currentMonitor);
@@ -103,7 +104,7 @@ void loop() {
 // }
 
 //     esp_task_wdt_reset();
-    button->Loop();
+    button->Loop(orchestrator->isIdle() && !bleLogger->isConnected());
     bleLogger->loop();
     //motorController.Loop();
     loopCountSinceSleep++;
@@ -132,21 +133,21 @@ void loop() {
         startWifiAtTime = 0;
     }
 
-    if (orchestrator->isIdle() && !bleLogger->isConnected() && loopCountSinceSleep > awakeTime) {
-        //Serial.println("Entering light sleep");
+    // if (orchestrator->isIdle() && !bleLogger->isConnected() && loopCountSinceSleep > awakeTime) {
+    //     //Serial.println("Entering light sleep");
         
-        //GoToSleep(1, &bleLogger);
-        // esp_sleep_enable_timer_wakeup(5000000); // 5 second
-        // esp_light_sleep_start();
+    //     //GoToSleep(1, &bleLogger);
+    //     // esp_sleep_enable_timer_wakeup(5000000); // 5 second
+    //     // esp_light_sleep_start();
 
-        // if (esp_sleep_get_touchpad_wakeup_status() != TOUCH_PAD_MAX)
-        // {
-        //     loopCountSinceSleep -= 10000;
-        // }
+    //     // if (esp_sleep_get_touchpad_wakeup_status() != TOUCH_PAD_MAX)
+    //     // {
+    //     //     loopCountSinceSleep -= 10000;
+    //     // }
 
-        // Serial.println("Woke up from light sleep");
-        loopCountSinceSleep = 0;
-    }
+    //     // Serial.println("Woke up from light sleep");
+    //     loopCountSinceSleep = 0;
+    // }
 
     
     // unsigned long currentMillis = millis();

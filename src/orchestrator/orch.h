@@ -52,6 +52,7 @@ bool CheckForAbort();
     const int maxRunTimeAtEnd = 10000;
     TaskHandle_t Task1 = NULL;
     static const int OrchWakeTime = 1000;
+    TickType_t timeAtLastFinish = 0;
     
     bool isRunning = false;
 };

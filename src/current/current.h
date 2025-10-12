@@ -33,6 +33,9 @@ public:
     void PrintCurrent();
     static void Loop(void* p_pParam);
     void RunMonitor();
+    float GetBatteryPercentage();
+
+    void AdjustCurrentLimits(bool increase);
 
 private:
     ILogger* logger;
@@ -53,13 +56,14 @@ private:
     static volatile int interuptCount;
     static const int movingAverageSizeSmall = 4;
     static const int movingAverageSizeLarge = 10;
-    static constexpr float maxCurrentHigh = 850.0;
-    static constexpr float maxCurrentLow = 780.0;
-    static constexpr float maxCurrentUltraLow = 520.0;
-    static constexpr float maxCurrentUltraUltraLow = 360.0;
+    static  float maxCurrentHigh;
+    static  float maxCurrentLow ;
+    static  float maxCurrentUltraLow;
+    static  float maxCurrentUltraUltraLow ;
     static constexpr float minCurrentRead = 200.0;
     static INA226_WE* ina226;
     void ShutdownIna226();
+    
     void StartupIna226();
     bool CheckInit();
     void SetCurrentValue(CurrentLevel level, bool closing);
@@ -69,9 +73,15 @@ private:
     float longAverageCurrent;
     bool isSlowRun;
     long currentMEasurementCounter = 0;
+    float currentVoltage = 0.0f;
     TickType_t shutdownTime;
     TaskHandle_t Task1 = NULL;
     SemaphoreHandle_t i2cMutex;
+
+    static constexpr float defaultMaxCurrentHigh = 850.0;
+    static constexpr float defaultMaxCurrentLow = 780.0;
+    static constexpr float defaultMaxCurrentUltraLow = 520.0;
+    static constexpr float defaultMaxCurrentUltraUltraLow = 360.0;
 };
 
 #endif // CURRENT_H

@@ -14,7 +14,7 @@ Orch::Orch(ILogger *logger, Preferences *pref) : logger(logger), directionClose(
 
     if (recordedTimeForCycle == 0) {
          logger->LogEvent("No recorded time for cycle found, setting defaults.");
-         recordedTimeForCycle = 5589;
+         recordedTimeForCycle = 5200; // Default to 5.2 seconds
          directionClose = true;
     }
 }
@@ -41,8 +41,9 @@ Orch::~Orch()
 void Orch::Reset()
 {
     AbortMovement();
-    recordedTimeForCycle = 0;
+    recordedTimeForCycle = 5200;
     
+    logger->LogEvent("Reset to default time for cycle: " + std::string(String(recordedTimeForCycle).c_str()));
     // StartMovement(TOGGLE);
 }
 
@@ -139,6 +140,7 @@ void Orch::Loop(void *pvParameters)
 
     UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
     p_pThis->logger->LogEvent("Orch stack high water mark: " + std::to_string(uxHighWaterMark) + " words");
+    p_pThis->timeAtLastFinish = xTaskGetTickCount();
 
     p_pThis->EndThread();
 }
@@ -163,12 +165,10 @@ void Orch::SetupSystem()
 
 bool Orch::isIdle()
 {
-    if (Task1 == NULL)
-    {
-        return true;
-    }
-    eTaskState taskState = eTaskGetState(Task1);
-    return taskState == eDeleted || taskState == eInvalid;
+    if (Task1 != NULL && eTaskGetState(Task1) < eDeleted)
+        return false;
+        
+    return timeAtLastFinish == 0 || (xTaskGetTickCount() - timeAtLastFinish) > pdMS_TO_TICKS(10000);
 }
 
 bool Orch::IsCalibrated()
@@ -200,6 +200,7 @@ bool Orch::CheckForAbort()
     {
         Motor::CurrentInterupt();
         logger->LogEvent("Abort requested");
+        currentMonitor->AdjustCurrentLimits(true);
         return true;
     }
     return false;
@@ -227,6 +228,14 @@ void Orch::ActionMovement()
         speed = recoverySpeed;
         timeForCycle = timeForCycle * 1.5;
     }
+    else
+    {
+        // Adjust speed based on the battery voltage
+        float batteryPercentage = currentMonitor->GetBatteryPercentage();
+        logger->LogEvent("Battery level: " + std::string(String(batteryPercentage * 100.0f).c_str()) + "%");
+
+        timeForCycle = timeForCycle * (1.0 + ((1.0 - batteryPercentage) * 0.5)); // Slow down by up to 20% based on battery level
+    }
 
     finishedSuccessfully = false;
 
@@ -237,7 +246,7 @@ void Orch::ActionMovement()
     else
     {
         logger->LogEvent("Start:Open");
-        timeForCycle = timeForCycle * 1.12;
+        timeForCycle = timeForCycle * 1.14;
     }
 
     logger->LogEvent("Cycle time = " + std::string(String(timeForCycle).c_str()));
@@ -279,7 +288,7 @@ void Orch::ActionMovement()
             logger->LogEvent("Success run");
             finishedSuccessfully = true;
             if (CheckForAbort()) return;
-            motorController->SetSpeedAndDirection(directionClose, slowSpeed, 3, true);
+            motorController->SetSpeedAndDirection(directionClose, slowSpeed, 4, true);
             vTaskDelay(100);
 
             if (CheckForAbort()) return;
@@ -292,6 +301,8 @@ void Orch::ActionMovement()
 
     if (isRecoveryRun)
         finishedSuccessfully = true;
+
+    currentMonitor->AdjustCurrentLimits(false);
 
     if (motorController->CurrentSpeed != 0)
     {

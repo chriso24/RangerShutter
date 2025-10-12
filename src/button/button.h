@@ -7,7 +7,9 @@
 class Button {
 public:
     void Loop();
+    
     void Init();
+    void Loop(bool sleepMode);
     byte ButtonPressed();
     byte ButtonLongPressed();
 
@@ -24,7 +26,7 @@ private:
     const int eventDebounceTime = 10;
     const int buttonDebounceAmount = 2000;
     touch_value_t previousTouchValues[WINDOW_SIZE];
-    touch_value_t longRunningAvg = 10;
+    touch_value_t longRunningAvg = 30;
     const int releaseWithin = 3000;
     const int longPressTime = 10000;
     const int holdForAtleast = 60;
