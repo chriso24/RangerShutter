@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <esp_sleep.h>
+#include <esp_task_wdt.h>
 
 
 #include "motor/motor.h"
@@ -25,7 +26,7 @@ void WifiUpdateStarting() {
     Serial.println("Wifi update starting, shutting down system."); 
     Serial.println("Stop motor.");
     Serial.println("Shutdown current monitor.");
-    orchestrator->EndThread();   
+    
     
     Serial.println("Done.");
 }
@@ -62,6 +63,9 @@ void triggerFromBle(BleLogger::Command command) {
 
 void setup() {
     enableLoopWDT();
+    //esp_task_wdt_init(10, true);
+    
+    //disableCore1WDT();
 
     // Just incase we crashed during an operation
     Motor::AllStop();
@@ -72,7 +76,7 @@ void setup() {
     orchestrator = new Orch(bleLogger, &preferences);
     
     bleLogger->init(triggerFromBle);
-    setupWifi();
+    //setupWifi();
 
     // button.Init();
     // currentMonitor.Init();
@@ -88,7 +92,17 @@ TickType_t startWifiAtTime = 0;  // loops
 TickType_t startBlueToothAtTime = 0;  // loops
 static unsigned long lastLogTime = 0;
 
+
+bool startup;
+
 void loop() {
+
+// if(!startup){
+// esp_task_wdt_add(NULL); 
+// startup = true;
+// }
+
+//     esp_task_wdt_reset();
     button->Loop();
     bleLogger->loop();
     //motorController.Loop();
@@ -114,7 +128,7 @@ void loop() {
     // }
 
     if (xTaskGetTickCount() > startWifiAtTime && startWifiAtTime != 0) {
-        setupWifi();
+        //setupWifi();
         startWifiAtTime = 0;
     }
 
@@ -143,7 +157,7 @@ void loop() {
     // }
 
     
-    vTaskDelay(10);
+    vTaskDelay(20);
 }
 
 

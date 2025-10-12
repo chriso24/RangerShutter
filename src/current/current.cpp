@@ -130,7 +130,7 @@ void Current::Loop(void* p_pParam)
 void Current::RunMonitor()
 {
     Init();
-    const TickType_t pollDelay = 10; // 1ms between measurements (ideal 140 us, but 1ms is the smallest) matches CONV_TIME_140)
+    const TickType_t pollDelay = 20; // 1ms between measurements (ideal 140 us, but 1ms is the smallest) matches CONV_TIME_140)
     currentMEasurementCounter = 0;
 
     while (shutdownTime == 0 || shutdownTime > xTaskGetTickCount())
@@ -139,6 +139,8 @@ void Current::RunMonitor()
         currentMEasurementCounter++;
         vTaskDelay(pollDelay);
     }
+
+    logger->LogEvent("Finished current mon loop");
 
     ShutdownIna226();
 }
@@ -152,6 +154,8 @@ void Current::ShutdownIna226()
         if (ina226) ina226->powerDown();
         xSemaphoreGive(i2cMutex);
     }
+
+    logger->LogEvent("INA226 powered down");
 }
 
 void Current::ShutdownMonitor()
@@ -336,7 +340,7 @@ void Current::CheckCurrent()
     }
 
     // Trigger callback on significant positive spike > 15% (0.15) or negative drop of similar magnitude
-    const float spikeThreshold = accelerationActive ? 0.5f :  0.2f; // 15%
+    const float spikeThreshold = accelerationActive ? 0.5f :  0.25f; // 15%
     if (change > spikeThreshold)
     {
         logger->LogEvent("ALERT: current change detected: " + std::string(String(change).c_str()));

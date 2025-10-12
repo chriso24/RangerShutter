@@ -51,11 +51,11 @@ private:
     static ShutdownInterup callBack;
     static float currentAtLastInterupt;
     static volatile int interuptCount;
-    static const int movingAverageSizeSmall = 3;
+    static const int movingAverageSizeSmall = 4;
     static const int movingAverageSizeLarge = 10;
     static constexpr float maxCurrentHigh = 850.0;
     static constexpr float maxCurrentLow = 780.0;
-    static constexpr float maxCurrentUltraLow = 490.0;
+    static constexpr float maxCurrentUltraLow = 520.0;
     static constexpr float maxCurrentUltraUltraLow = 360.0;
     static constexpr float minCurrentRead = 200.0;
     static INA226_WE* ina226;

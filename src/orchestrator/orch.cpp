@@ -237,7 +237,7 @@ void Orch::ActionMovement()
     else
     {
         logger->LogEvent("Start:Open");
-        timeForCycle = timeForCycle * 1.05;
+        timeForCycle = timeForCycle * 1.12;
     }
 
     logger->LogEvent("Cycle time = " + std::string(String(timeForCycle).c_str()));
@@ -279,7 +279,7 @@ void Orch::ActionMovement()
             logger->LogEvent("Success run");
             finishedSuccessfully = true;
             if (CheckForAbort()) return;
-            motorController->SetSpeedAndDirection(directionClose, slowSpeed, 5, true);
+            motorController->SetSpeedAndDirection(directionClose, slowSpeed, 3, true);
             vTaskDelay(100);
 
             if (CheckForAbort()) return;
