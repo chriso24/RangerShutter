@@ -17,6 +17,7 @@ float Current::maxCurrentHigh = Current::defaultMaxCurrentHigh;
 float Current::maxCurrentLow = Current::defaultMaxCurrentLow;
 float Current::maxCurrentUltraLow = Current::defaultMaxCurrentUltraLow;
 float Current::maxCurrentUltraUltraLow = Current::defaultMaxCurrentUltraUltraLow;
+float Current::currentLimitPercentage = Current::defaultCurrentWatch;
 
 
 // Constructor
@@ -168,7 +169,7 @@ float Current::GetBatteryPercentage()
 {
     // Placeholder for battery percentage logic
     if (currentVoltage == 0.0f) return 1.0f; // No reading yet default 100%%
-
+    logger->LogEvent("Battery voltage: " + std::string(String(currentVoltage).c_str()) + "V");
     return (currentVoltage / 14.0f); 
 }
 
@@ -179,15 +180,15 @@ void Current::AdjustCurrentLimits( bool increase)
         maxCurrentHigh += 10.0f;
         maxCurrentLow += 10.0f;
         maxCurrentUltraLow += 10.0f;
-        maxCurrentUltraUltraLow += 10.0f;
+        currentLimitPercentage += 0.03f;
         logger->LogEvent("Increased current limits");
     }
     else if (!increase && (maxCurrentHigh > defaultMaxCurrentHigh * 0.7))
     {
-        maxCurrentHigh -= 1.0f;
-        maxCurrentLow -= 1.0f;
-        maxCurrentUltraLow -= 1.0f;
-        maxCurrentUltraUltraLow -= 1.0f;
+        maxCurrentHigh -= 0.05f;
+        maxCurrentLow -= 0.5f;
+        maxCurrentUltraLow -= 0.5f;
+        currentLimitPercentage -= 0.001f;
         logger->LogEvent("Decreased current limits");
     }
 }
@@ -229,7 +230,7 @@ void Current::CurrentInterupt()
 void Current::SetCurrentLimitPercentage(float percentage)
 {
     float current = ((maxCurrentHigh - maxCurrentUltraLow) * percentage) + maxCurrentUltraLow;
-    logger->LogEvent("Set current limit to: " + std::string(String(current).c_str()));
+    //logger->LogEvent("Set current limit to: " + std::string(String(current).c_str()));
 
     if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE)
     {
@@ -334,6 +335,7 @@ void Current::CheckCurrent()
         ina226->readAndClearFlags();
         busPower = ina226->getBusPower();
         currentVoltage = ina226->getBusVoltage_V();
+        //logger->LogEvent("Bus V: " + std::string(String(ina226->getBusVoltage_V()).c_str()) + "W, Shunt voltage: " + std::string(String(currentVoltage).c_str()) + "V");
         xSemaphoreGive(i2cMutex);
     }
 
@@ -375,7 +377,7 @@ void Current::CheckCurrent()
     }
 
     // Trigger callback on significant positive spike > 15% (0.15) or negative drop of similar magnitude
-    const float spikeThreshold = accelerationActive ? 0.5f :  0.25f; // 15%
+    const float spikeThreshold = accelerationActive ? 0.5f :  currentLimitPercentage; // 15%
     if (change > spikeThreshold)
     {
         logger->LogEvent("ALERT: current change detected: " + std::string(String(change).c_str()));

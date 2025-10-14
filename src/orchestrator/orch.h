@@ -17,7 +17,9 @@ public:
 
     Orch(ILogger* logger, Preferences *pref);
     ~Orch();
-    //void Init(Motor* motorController, Current* currentMonitor);
+    void Reset(int timeForCycle);
+    void UpdateRunTime(bool increase);
+    // void Init(Motor* motorController, Current* currentMonitor);
     void StartMovement(Command direction);
     bool AbortMovement();
     void ActionMovement();

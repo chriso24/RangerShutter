@@ -55,8 +55,13 @@ void triggerFromBle(BleLogger::Command command) {
         orchestrator->StartMovement(Orch::TOGGLE);
     } else if (command == BleLogger::Command::RESET) {
         orchestrator->Reset();
-    }   else if (command == BleLogger::Command::WIFI) {
+    }  else if (command == BleLogger::Command::RESET_UP) {
+        orchestrator->UpdateRunTime(true);
+    } else if (command == BleLogger::Command::WIFI) {
         setupWifi();
+    }
+    else if (command == BleLogger::Command::RESET_DOWN) {
+        orchestrator->UpdateRunTime(false);
     }
 }
 

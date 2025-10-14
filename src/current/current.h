@@ -60,6 +60,7 @@ private:
     static  float maxCurrentLow ;
     static  float maxCurrentUltraLow;
     static  float maxCurrentUltraUltraLow ;
+    static float currentLimitPercentage;
     static constexpr float minCurrentRead = 200.0;
     static INA226_WE* ina226;
     void ShutdownIna226();
@@ -81,7 +82,8 @@ private:
     static constexpr float defaultMaxCurrentHigh = 850.0;
     static constexpr float defaultMaxCurrentLow = 780.0;
     static constexpr float defaultMaxCurrentUltraLow = 520.0;
-    static constexpr float defaultMaxCurrentUltraUltraLow = 360.0;
+    static constexpr float defaultMaxCurrentUltraUltraLow = 340.0; // This is fixed, the lowest current the motor draws while stalled
+    static constexpr float defaultCurrentWatch = 0.25f;
 };
 
 #endif // CURRENT_H

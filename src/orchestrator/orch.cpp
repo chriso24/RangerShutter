@@ -38,10 +38,29 @@ Orch::~Orch()
 //     currentMonitor = current;
 // }
 
+void Orch::UpdateRunTime(bool increase)
+{
+    if (increase)
+    {
+        recordedTimeForCycle += 200;
+    }
+    else
+    {
+        recordedTimeForCycle -= 200;
+        if (recordedTimeForCycle < 4500)
+            recordedTimeForCycle = 4500;
+    }
+
+    preferences->putInt("rtfc", recordedTimeForCycle);
+    
+    logger->LogEvent("Updated time for cycle: " + std::string(String(recordedTimeForCycle).c_str()));
+}
+
 void Orch::Reset()
 {
     AbortMovement();
     recordedTimeForCycle = 5200;
+    preferences->putInt("rtfc", recordedTimeForCycle);
     
     logger->LogEvent("Reset to default time for cycle: " + std::string(String(recordedTimeForCycle).c_str()));
     // StartMovement(TOGGLE);
@@ -219,6 +238,8 @@ void Orch::ActionMovement()
 
     // pass the local function as the callback
     currentMonitor->StartMonitor(CurrentInterupt, false);
+
+    vTaskDelay(200);
     
     int speed = fastSpeed;
     int timeForCycle = recordedTimeForCycle;
@@ -226,7 +247,7 @@ void Orch::ActionMovement()
     if (!finishedSuccessfully)
     {
         speed = recoverySpeed;
-        timeForCycle = timeForCycle * 1.5;
+        timeForCycle = timeForCycle * 1.6;
     }
     else
     {
@@ -288,7 +309,7 @@ void Orch::ActionMovement()
             logger->LogEvent("Success run");
             finishedSuccessfully = true;
             if (CheckForAbort()) return;
-            motorController->SetSpeedAndDirection(directionClose, slowSpeed, 4, true);
+            motorController->SetSpeedAndDirection(directionClose, slowSpeed, 3, true);
             vTaskDelay(100);
 
             if (CheckForAbort()) return;

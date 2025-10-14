@@ -20,6 +20,8 @@ public:
         OPEN,
         CLOSE,
         RESET,
+        RESET_UP,
+        RESET_DOWN,
         WIFI
     };
     typedef void(*bleActivationCallback)(Command);

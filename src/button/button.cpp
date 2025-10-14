@@ -54,8 +54,8 @@ void Button::Loop(bool sleepMode)
      bool isChange = buttonDown != isPressed;
      cyclesSinceAverageTake++;
 
-     if(!isPressed)
-     {
+    //  if(!isPressed)
+    //  {
          if (cyclesSinceAverageTake > 100)
          {
             cyclesSinceAverageTake = 0;
@@ -69,7 +69,7 @@ void Button::Loop(bool sleepMode)
             }
             //Serial.print("final longRunningAvg = ") ; Serial.println(longRunningAvg );
          }
-     }
+  //   }
 
     // debounce
     if ((isChange && (timeOfLastStateChange + eventDebounceTime) < xTaskGetTickCount()))

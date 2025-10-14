@@ -216,6 +216,14 @@ void BleLogger::recieveMessage(const std::string& message) {
         LogEvent("Reset command via BLE");
         this->callBackOnUpdate(Command::RESET);
     }
+    else if (message == "ResetUp") {
+        LogEvent("ResetUp command via BLE");
+        this->callBackOnUpdate(Command::RESET_UP);
+    }
+    else if (message == "ResetDown") {
+        LogEvent("ResetDown command via BLE");
+        this->callBackOnUpdate(Command::RESET_DOWN);
+    }
     else if (message == "WIFI") {
         LogEvent("Enable Wifi");
         this->callBackOnUpdate(Command::WIFI);

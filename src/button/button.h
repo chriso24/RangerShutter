@@ -24,7 +24,7 @@ private:
     byte notificationRequired = 0;
     byte notificationLongRequired = 0;
     const int eventDebounceTime = 10;
-    const int buttonDebounceAmount = 2000;
+    const int buttonDebounceAmount = 1000;
     touch_value_t previousTouchValues[WINDOW_SIZE];
     touch_value_t longRunningAvg = 30;
     const int releaseWithin = 3000;
