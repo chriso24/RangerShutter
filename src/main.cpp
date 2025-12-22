@@ -67,9 +67,11 @@ void triggerFromBle(BleLogger::Command command) {
 
 
 void setup() {
-    enableLoopWDT();
+    //enableLoopWDT();
 
-    //esp_task_wdt_init(10, true);
+    esp_task_wdt_deinit(); 
+    esp_task_wdt_init(30, true);
+    esp_task_wdt_add(NULL); 
     
     //disableCore1WDT();
 
@@ -108,7 +110,7 @@ void loop() {
 // startup = true;
 // }
 
-//     esp_task_wdt_reset();
+     esp_task_wdt_reset();
     button->Loop(orchestrator->isIdle() && !bleLogger->isConnected());
     bleLogger->loop();
     //motorController.Loop();

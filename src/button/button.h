@@ -12,12 +12,14 @@ public:
     void Loop(bool sleepMode);
     byte ButtonPressed();
     byte ButtonLongPressed();
+    static volatile TickType_t timeOfLastStateChange;
+    static volatile TickType_t timeAtButtonDown;
 
 private:
     static const int WINDOW_SIZE = 3;
-    TickType_t timeOfLastStateChange;
+    
     TickType_t timeOfLastButtonPress;
-    TickType_t timeAtButtonDown;
+    //TickType_t timeAtButtonDown;
     int cyclesSinceAverageTake = 0;
     byte buttonDown = 0;
     byte buttonUp = 1;

@@ -4,13 +4,18 @@
 #include <esp_sleep.h>
 
 TickType_t timeForNextSleep = 0;
+volatile TickType_t Button::timeOfLastStateChange = 0;
+volatile TickType_t Button::timeAtButtonDown = 0;
 
 static void IRAM_ATTR TouchCallback()
 {
     // This function is called when the touchpad is touched
     // You can add code here to handle the touch event
  Serial.println("Touchpad touched!");
- 
+
+ Button::timeOfLastStateChange = xTaskGetTickCount();
+ Button::timeAtButtonDown = xTaskGetTickCount();
+
 }
 
 void Button::Init()
@@ -132,6 +137,7 @@ void Button::Loop(bool sleepMode)
 
         if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_TIMER)
         {
+            Serial.println("Woke up from timer");
             timeForNextSleep = xTaskGetTickCount() + pdMS_TO_TICKS(500); // 500ms wakup
         }
         else

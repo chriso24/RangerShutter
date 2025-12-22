@@ -8,6 +8,7 @@ Orch::Orch(ILogger *logger, Preferences *pref) : logger(logger), directionClose(
     preferences = pref;
     recordedTimeForCycle = preferences->getInt("rtfc", 0);
     directionClose = preferences->getBool("directionClose", true);
+    finishedSuccessfully = preferences->getBool("finishedSuccessfully", true);
 
      logger->LogEvent("Load time for cycle: " + std::string(String(recordedTimeForCycle).c_str()));
     logger->LogEvent("Load direction close: " + std::string(String(directionClose ? "true" : "false").c_str()));
@@ -335,10 +336,14 @@ void Orch::ActionMovement()
         motorController->Stop(false);
     }
 
+    
+    preferences->putBool("directionClose", directionClose);
+    preferences->putBool("finishedSuccessfully", finishedSuccessfully);
+    logger->LogEvent("Saved direction close: " + std::string(String(directionClose ? "true" : "false").c_str()));
+
     if (CheckForAbort()) return;
     motorController->Stop(false);
 
-    preferences->putBool("directionClose", directionClose);
 
     
 }
