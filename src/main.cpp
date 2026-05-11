@@ -122,7 +122,17 @@ void loop() {
     //     //setupWifi();
     // }
 
-
+    static bool manualMoveActive = false;
+    
+    if (button->IsHeldFor(2000) && !manualMoveActive) {
+        manualMoveActive = true;
+        orchestrator->StartManualMovement();
+    }
+    
+    if (manualMoveActive && !button->IsCurrentlyPressed()) {
+        manualMoveActive = false;
+        orchestrator->StopManualMovement();
+    }
 
     if (button->ButtonPressed()) {
     {

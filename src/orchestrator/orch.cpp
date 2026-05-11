@@ -3,7 +3,7 @@
 
 volatile bool Orch::abortRequested = false;
 
-Orch::Orch(ILogger *logger, Preferences *pref) : logger(logger), directionClose(false), motorController(nullptr), currentMonitor(nullptr), recordedTimeForCycle(0), finishedSuccessfully(false), Task1(NULL) {
+Orch::Orch(ILogger *logger, Preferences *pref) : logger(logger), directionClose(false), manualDirectionClose(false), motorController(nullptr), currentMonitor(nullptr), recordedTimeForCycle(0), finishedSuccessfully(false), Task1(NULL) {
 
     preferences = pref;
     recordedTimeForCycle = preferences->getInt("rtfc", 0);
@@ -101,6 +101,11 @@ bool Orch::AbortMovement()
 {
     bool threadRunning = false;
     abortRequested = true;
+
+    
+    if (motorController != nullptr)
+        motorController->Stop(false);
+
     try
     {
         if (Task1 != NULL)
@@ -125,13 +130,86 @@ bool Orch::AbortMovement()
         logger->LogEvent("AbortMovement failed: " + std::string(e.what()));
     }
 
-    if (motorController != nullptr)
-        motorController->Stop(false);
-
     if (currentMonitor != nullptr)    
         currentMonitor->ShutdownMonitor();
 
     return threadRunning;
+}
+
+void Orch::StartManualMovement()
+{
+    bool wasRunning = AbortMovement();
+
+    // Toggle direction
+    manualDirectionClose = !manualDirectionClose;
+
+    xTaskCreatePinnedToCore(
+        ManualLoop,           /* Function to implement the task */
+        "OrchMan",            /* Name of the task */
+        4096,                 /* Stack size in words */
+        this,                 /* Task input parameter */
+        tskIDLE_PRIORITY + 2, /* Priority of the task */
+        &Task1,               /* Task handle. */
+        0                     // 1
+    );                        /* Core where the task should run */
+}
+
+void Orch::StopManualMovement()
+{
+    AbortMovement();
+}
+
+void Orch::ManualLoop(void *pvParameters)
+{
+    Orch *p_pThis = static_cast<Orch *>(pvParameters);
+
+    p_pThis->isRunning = true;
+    try
+    {
+        p_pThis->SetupSystem();
+        p_pThis->ActionManualMovement();
+    }
+    catch(const std::runtime_error& e)
+    {
+        p_pThis->logger->LogEvent("Thread movement aborted: " + std::string(e.what()));
+    }
+
+    p_pThis->currentMonitor->ShutdownMonitor();
+    p_pThis->motorController->Stop(false);
+    p_pThis->logger->LogEvent("Finish manual move");
+
+    p_pThis->timeAtLastFinish = xTaskGetTickCount();
+
+    p_pThis->EndThread();
+}
+
+void Orch::ActionManualMovement()
+{
+    currentMonitor->Reset();
+    currentMonitor->StartMonitor(CurrentInterupt, false);
+
+    vTaskDelay(200);
+
+    logger->LogEvent(manualDirectionClose ? "Start manual: Close" : "Start manual: Open");
+
+    currentMonitor->Reset();
+    currentMonitor->SetCurrentLimit(Current::CurrentLevel::C_HIGH, !manualDirectionClose);
+    abortRequested = false;
+
+    vTaskDelay(200);
+
+    motorController->SetSpeedAndDirection(manualDirectionClose, fastSpeed, 3, false);
+
+    if (CheckForAbort()) return;
+
+    while (!abortRequested)
+    {
+        vTaskDelay(100);
+    }
+
+    logger->LogEvent("Manual movement stopped");
+
+    motorController->Stop(false);
 }
 
 void Orch::Loop(void *pvParameters)

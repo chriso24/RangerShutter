@@ -21,8 +21,11 @@ public:
     void UpdateRunTime(bool increase);
     // void Init(Motor* motorController, Current* currentMonitor);
     void StartMovement(Command direction);
+    void StartManualMovement();
+    void StopManualMovement();
     bool AbortMovement();
     void ActionMovement();
+    void ActionManualMovement();
     void Stop(bool emergency);
     void PerformCalibration();
     
@@ -32,6 +35,7 @@ public:
     
     bool isIdle();
     static void Loop(void* p_pParam);
+    static void ManualLoop(void* p_pParam);
     static void CurrentInterupt();
     static volatile bool abortRequested;
 
@@ -43,6 +47,7 @@ bool CheckForAbort();
     ILogger* logger;
     Preferences* preferences;
     bool directionClose;
+    bool manualDirectionClose;
     Motor* motorController;
     Current* currentMonitor;
     int recordedTimeForCycle;

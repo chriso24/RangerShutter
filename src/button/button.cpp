@@ -1,80 +1,34 @@
 #include "button.h"
 #include "Arduino.h"
-#include <driver/touch_pad.h>
 #include <esp_sleep.h>
 
 TickType_t timeForNextSleep = 0;
 volatile TickType_t Button::timeOfLastStateChange = 0;
 volatile TickType_t Button::timeAtButtonDown = 0;
 
-static void IRAM_ATTR TouchCallback()
+static void IRAM_ATTR ButtonCallback()
 {
-    // This function is called when the touchpad is touched
-    // You can add code here to handle the touch event
- Serial.println("Touchpad touched!");
-
- Button::timeOfLastStateChange = xTaskGetTickCount();
- Button::timeAtButtonDown = xTaskGetTickCount();
-
+    // This function is called when the button state changes
+    Button::timeOfLastStateChange = xTaskGetTickCountFromISR();
 }
 
 void Button::Init()
 {
-    for (size_t i = 0; i < 3; i++)
-    {
-        previousTouchValues[i] = 50;
-    }
-
-    esp_sleep_enable_touchpad_wakeup();
-    //esp_sleep_enable_ext0_wakeup(GPIO_NUM_4, 5); // 1 = High, 0 = Low
-
-    touchAttachInterrupt(T0, TouchCallback, 40);
-
+    pinMode(BUTTON_PIN, INPUT_PULLUP);
     
+    // Enable wakeup from deep sleep / light sleep via GPIO.
+    // ext0 allows waking up on LOW state.
+    esp_sleep_enable_ext0_wakeup((gpio_num_t)BUTTON_PIN, 0); // 0 = Low
+
+    // We attach an interrupt on CHANGE to catch both press and release
+    attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), ButtonCallback, CHANGE);
 }
 
 
 void Button::Loop(bool sleepMode)
 {
-    touch_value_t touch = touchRead(T0);
-    touch_value_t averageTouch = previousTouchValues[0];
-
-    for (int i = 0; i < WINDOW_SIZE-1; i++)
-    {
-        previousTouchValues[i] = previousTouchValues[i + 1];
-        averageTouch = averageTouch + previousTouchValues[i];
-    }
-    previousTouchValues[WINDOW_SIZE-1] = touch;
-    //Serial.print("Count = ") ; Serial.println(averageTouch );
-    averageTouch = (averageTouch + touch) / 4.0;
-
-    //Serial.print("Touch = ") ; Serial.println(touch );
-    //Serial.print("Avera = ") ; Serial.println(averageTouch );
-
-   
-    //averageTouch = touch;
-    //Serial.print("Avera = ") ; Serial.println(averageTouch );
-
-      bool isPressed = averageTouch < longRunningAvg;
-     bool isChange = buttonDown != isPressed;
-     cyclesSinceAverageTake++;
-
-    //  if(!isPressed)
-    //  {
-         if (cyclesSinceAverageTake > 100)
-         {
-            cyclesSinceAverageTake = 0;
-            longRunningAvg = ((longRunningAvg + averageTouch)/2)* 0.8;
-
-
-            //Serial.print("Updating avergae. New average = ") ; Serial.println(longRunningAvg );
-            if (longRunningAvg > 40)
-            {
-                longRunningAvg = 40;
-            }
-            //Serial.print("final longRunningAvg = ") ; Serial.println(longRunningAvg );
-         }
-  //   }
+    bool isPressed = (digitalRead(BUTTON_PIN) == LOW);
+    bool isChange = buttonDown != isPressed;
 
     // debounce
     if ((isChange && (timeOfLastStateChange + eventDebounceTime) < xTaskGetTickCount()))
@@ -120,19 +74,16 @@ void Button::Loop(bool sleepMode)
     }
     else if (isPressed)
     {
-        Serial.print(averageTouch);
-        Serial.print("|");
+        // periodic action while pressed (if needed)
     }
 
 
     if (sleepMode && !isPressed && !isChange && timeForNextSleep < xTaskGetTickCount())
     {
-        Serial.println("Entering sleep mode from button with touch value: " + String(longRunningAvg));
-        //Serial.println(esp_sleep_enable_touchpad_wakeup());
-        //esp_sleep_enable_timer_wakeup(5000);
-        touchAttachInterrupt(T0, TouchCallback, longRunningAvg);
-        esp_sleep_enable_touchpad_wakeup();
-        esp_sleep_enable_timer_wakeup(random(2, 4) * 1000000); // wake up in a random time between 2 and 7 seconds for the BLE
+        Serial.println("Entering sleep mode from button");
+        
+        esp_sleep_enable_ext0_wakeup((gpio_num_t)BUTTON_PIN, 0); // wake up on LOW
+        esp_sleep_enable_timer_wakeup(random(2, 4) * 1000000); // wake up in a random time between 2 and 4 seconds for the BLE
         esp_light_sleep_start();
 
         if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_TIMER)
@@ -142,23 +93,11 @@ void Button::Loop(bool sleepMode)
         }
         else
         {
-            touchDetachInterrupt(T0);
-            timeForNextSleep = xTaskGetTickCount() + pdMS_TO_TICKS(20000); // 10 seconds from now
-            Serial.println("Woke up from other reason");
+            timeForNextSleep = xTaskGetTickCount() + pdMS_TO_TICKS(20000); // 20 seconds from now
+            Serial.println("Woke up from button/other reason");
         }
         
     }
-    // if (isChange && (timeSinceLastButtonPress + debounceAmount) < xTaskGetTickCount())
-    // {
-    //     buttonDown = isPressed;
-
-    //     if (!isPressed)
-    //     {
-    //         notificationRequired = true;
-    //         buttonUp = true;
-    //     }
-
-    // }
 }
 
 byte Button::ButtonPressed()
@@ -179,4 +118,18 @@ byte Button::ButtonLongPressed()
         return true;
     }
     return false;
+}
+
+bool Button::IsHeldFor(int ms)
+{
+    if (buttonDown && (xTaskGetTickCount() - timeAtButtonDown) > pdMS_TO_TICKS(ms))
+    {
+        return true;
+    }
+    return false;
+}
+
+bool Button::IsCurrentlyPressed()
+{
+    return buttonDown;
 }
