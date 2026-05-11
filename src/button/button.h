@@ -27,9 +27,9 @@ private:
     byte notificationLongRequired = 0;
     const int eventDebounceTime = 10;
     const int buttonDebounceAmount = 1000;
-    const int releaseWithin = 1000;
+    const int releaseWithin = 1500;
     const int longPressTime = 10000;
-    const int holdForAtleast = 100;
+    const int holdForAtleast = 50;
 };
 
 #endif // BUTTON_H

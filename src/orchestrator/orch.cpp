@@ -18,11 +18,24 @@ Orch::Orch(ILogger *logger, Preferences *pref) : logger(logger), directionClose(
          recordedTimeForCycle = 5200; // Default to 5.2 seconds
          directionClose = true;
     }
+
+    currentMonitor = new Current(logger);
+    currentMonitor->Init(); 
+    motorController = new Motor(logger);
+    motorController->Init(currentMonitor);
 }
 
 Orch::~Orch()
 {
     AbortMovement();
+    if (motorController != nullptr) {
+        delete motorController;
+        motorController = nullptr;
+    }
+    if (currentMonitor != nullptr) {
+        delete currentMonitor;
+        currentMonitor = nullptr;
+    }
 }
 
 
@@ -108,21 +121,17 @@ bool Orch::AbortMovement()
 
     try
     {
-        if (Task1 != NULL)
+        if (Task1 != NULL && isRunning)
         {
-            eTaskState taskState = eTaskGetState(Task1);
-            if (taskState < eDeleted)
-            {
-                threadRunning = true;
-                logger->LogEvent("Aborting current movement");
+            threadRunning = true;
+            logger->LogEvent("Aborting current movement");
 
-                TickType_t startTick = xTaskGetTickCount();
-                while(Task1 != NULL && isRunning && eTaskGetState(Task1) != eDeleted && (xTaskGetTickCount() - startTick) < pdMS_TO_TICKS(500)) {
-                    vTaskDelay(100);
-                }
-
-                logger->LogEvent("Aborted current movement");
+            TickType_t startTick = xTaskGetTickCount();
+            while(isRunning && (xTaskGetTickCount() - startTick) < pdMS_TO_TICKS(500)) {
+                vTaskDelay(10);
             }
+
+            logger->LogEvent("Aborted current movement");
         }
     }
     catch (const std::exception &e)
@@ -245,8 +254,8 @@ void Orch::Loop(void *pvParameters)
 
 void Orch::EndThread()
 {
-    isRunning = false;
     Task1 = NULL;
+    isRunning = false;
     vTaskDelete(NULL);
 }
 
@@ -254,11 +263,6 @@ void Orch::EndThread()
 void Orch::SetupSystem()
 {
     abortRequested = false;
-    currentMonitor = new Current(logger);
-    currentMonitor->Init(); 
-    motorController = new Motor(logger);
-    motorController->Init(currentMonitor);
-   
 }
 
 bool Orch::isIdle()

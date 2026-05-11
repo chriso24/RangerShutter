@@ -129,9 +129,8 @@ void Current::Loop(void* p_pParam)
     self->RunMonitor();
 
     // Ensure the callback is not called unexpectedly here
-    vTaskDelete(NULL);
     self->Task1 = NULL;
-    //vTaskDelete(NULL);
+    vTaskDelete(NULL);
 }
 
 void Current::RunMonitor()
@@ -199,19 +198,14 @@ void Current::ShutdownMonitor()
     shutdownTime = 1;
     if (Task1 != NULL)
     {
-        eTaskState taskState = eTaskGetState(Task1);
-        if (taskState < eDeleted)
-        {
-            logger->LogEvent("Aborting current monitor");
+        logger->LogEvent("Aborting current monitor");
 
-            TickType_t startTick = xTaskGetTickCount();
-            while(Task1 != NULL && eTaskGetState(Task1) < eDeleted && (xTaskGetTickCount() - startTick) < pdMS_TO_TICKS(500)) {
-                vTaskDelay(100);
-            }
-            
-            Task1 = NULL; // Set to null before deleting
-            logger->LogEvent("Aborted current monitor");
+        TickType_t startTick = xTaskGetTickCount();
+        while(Task1 != NULL && (xTaskGetTickCount() - startTick) < pdMS_TO_TICKS(500)) {
+            vTaskDelay(10);
         }
+        
+        logger->LogEvent("Aborted current monitor");
     }
 }
 
